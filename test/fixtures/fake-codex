@@ -1,0 +1,57 @@
+#!/usr/bin/env bun
+// A stand-in Codex: records plugin commands and speaks enough app-server
+// JSON-RPC for one config write. Never touches the real ~/.codex.
+import { appendFileSync } from "node:fs";
+const log = process.env["FAKE_CODEX_LOG"]!;
+const args = process.argv.slice(2);
+appendFileSync(log, `${JSON.stringify(args)}\n`);
+if (args[0] === "plugin" && args[1] === "marketplace" && args[2] === "list") {
+  const known = process.env["FAKE_CODEX_MARKETPLACES"] ?? "";
+  console.log("MARKETPLACE  ROOT");
+  for (const name of known.split(",").filter(Boolean)) console.log(`${name}  /somewhere/${name}`);
+  process.exit(0);
+}
+if (args[0] === "plugin" && args[1] === "remove") process.exit(process.env["FAKE_CODEX_REMOVE_EXIT"] ? 1 : 0);
+if (args[0] === "plugin") {
+  if (process.env["FAKE_CODEX_ADD_FAIL"]) {
+    console.error("plugin add exploded");
+    process.exit(2);
+  }
+  if (args[1] === "add") {
+    const [name, marketplace] = String(args[2]).split("@");
+    const { mkdirSync } = await import("node:fs");
+    mkdirSync(`${process.env["CODEX_HOME"]}/plugins/cache/${marketplace}/${name}/0.0.0`, {
+      recursive: true,
+    });
+  }
+  process.exit(0);
+}
+if (args[0] === "app-server") {
+  const decoder = new TextDecoder();
+  let buffer = "";
+  for await (const chunk of Bun.stdin.stream()) {
+    buffer += decoder.decode(chunk, { stream: true });
+    let index = buffer.indexOf("\n");
+    while (index !== -1) {
+      const line = buffer.slice(0, index);
+      buffer = buffer.slice(index + 1);
+      index = buffer.indexOf("\n");
+      if (!line.trim()) continue;
+      const message = JSON.parse(line);
+      appendFileSync(log, `${JSON.stringify(message)}\n`);
+      if (message.id === undefined) continue;
+      if (message.method === "initialize")
+        console.log(JSON.stringify({ jsonrpc: "2.0", id: message.id, result: { userAgent: "fake" } }));
+      else if (message.method === "config/value/write")
+        console.log(
+          process.env["FAKE_CODEX_WRITE_FAIL"]
+            ? JSON.stringify({ jsonrpc: "2.0", id: message.id, error: { code: -1, message: "nope" } })
+            : JSON.stringify({ jsonrpc: "2.0", id: message.id, result: { status: "ok" } }),
+        );
+      else console.log(JSON.stringify({ jsonrpc: "2.0", id: message.id, error: { code: -32601, message: "unknown" } }));
+    }
+  }
+  process.exit(0);
+}
+// Anything else is a launch: it was recorded above; exit like a quiet session.
+process.exit(0);

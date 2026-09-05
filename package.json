@@ -1,0 +1,23 @@
+{
+  "name": "agentroles",
+  "version": "0.1.0",
+  "description": "Give Claude Code, Codex or AgentVoice a role for one invocation: skills, MCP servers and prompts from a directory",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "agentroles": "./src/main.ts"
+  },
+  "scripts": {
+    "lint": "biome check .",
+    "format": "biome check --write src test scripts",
+    "typecheck": "tsc --noEmit",
+    "test": "bun test --timeout 20000 test",
+    "check": "bun run lint && bun run typecheck && bun run test"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.5.3",
+    "@types/bun": "1.3.14",
+    "bun-types": "1.3.14",
+    "typescript": "5.9.3"
+  }
+}
