@@ -28,6 +28,7 @@ describe("loadRole", () => {
       const dir = s.role("full", {
         "APPEND_SYSTEM_PROMPT.md": "append",
         "VOICE_AGENT_SYSTEM_PROMPT.md": "voice",
+        "VOICE_ORCHESTRATOR_MULTI_AGENT_MODE.md": "mode",
         "VOICE_ORCHESTRATOR_SESSION_START.md": "start",
         "skills/one/SKILL.md": SKILL,
         "skills/two/SKILL.md": SKILL,
@@ -40,6 +41,7 @@ describe("loadRole", () => {
         appendSystemPrompt: join(dir, "APPEND_SYSTEM_PROMPT.md"),
         voice: {
           voiceSystem: join(dir, "VOICE_AGENT_SYSTEM_PROMPT.md"),
+          multiAgentMode: join(dir, "VOICE_ORCHESTRATOR_MULTI_AGENT_MODE.md"),
           sessionStart: join(dir, "VOICE_ORCHESTRATOR_SESSION_START.md"),
         },
         skillsRoot: join(dir, "skills"),
@@ -93,6 +95,14 @@ describe("loadRole", () => {
       const dir = s.role("broken");
       symlinkSync(join(dir, "missing"), join(dir, "SYSTEM_PROMPT.md"));
       expect(() => loadRole(dir)).toThrow("SYSTEM_PROMPT.md: cannot read");
+      const modePrompt = s.role("modeprompt");
+      symlinkSync(
+        join(modePrompt, "missing"),
+        join(modePrompt, "VOICE_ORCHESTRATOR_MULTI_AGENT_MODE.md"),
+      );
+      expect(() => loadRole(modePrompt)).toThrow(
+        "VOICE_ORCHESTRATOR_MULTI_AGENT_MODE.md: cannot read",
+      );
       const dirPrompt = s.role("dirprompt");
       mkdirSync(join(dirPrompt, "APPEND_SYSTEM_PROMPT.md"));
       expect(() => loadRole(dirPrompt)).toThrow("expected a regular file");

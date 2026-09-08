@@ -28,6 +28,7 @@ control of the harness it reaches; there is no agentroles-specific overlay.
 | `mcp.json` | MCP servers in Claude Code's `.mcp.json` shape: `{"mcpServers": {"<name>": {...}}}` |
 | `VOICE_AGENT_SYSTEM_PROMPT.md` / `VOICE_AGENT_APPEND_SYSTEM_PROMPT.md` | AgentVoice only: the voice agent's prompt |
 | `VOICE_ORCHESTRATOR_SYSTEM_PROMPT.md` / `VOICE_ORCHESTRATOR_APPEND_SYSTEM_PROMPT.md` | AgentVoice only: stand-ins for the general prompt files of the same kind |
+| `VOICE_ORCHESTRATOR_MULTI_AGENT_MODE.md` | AgentVoice only: native multi-agent mode text; enables V2 and replaces its delegation policy |
 | `VOICE_ORCHESTRATOR_SESSION_START.md` / `VOICE_ORCHESTRATOR_SESSION_END.md` | AgentVoice only: developer instructions to the working agent when a voice session starts or ends |
 
 A replacement and an append for the same agent cannot both be present; the

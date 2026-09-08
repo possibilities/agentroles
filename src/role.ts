@@ -32,6 +32,7 @@ export const VOICE_FILES = {
   voiceAppend: "VOICE_AGENT_APPEND_SYSTEM_PROMPT.md",
   orchestratorSystem: "VOICE_ORCHESTRATOR_SYSTEM_PROMPT.md",
   orchestratorAppend: "VOICE_ORCHESTRATOR_APPEND_SYSTEM_PROMPT.md",
+  multiAgentMode: "VOICE_ORCHESTRATOR_MULTI_AGENT_MODE.md",
   sessionStart: "VOICE_ORCHESTRATOR_SESSION_START.md",
   sessionEnd: "VOICE_ORCHESTRATOR_SESSION_END.md",
 } as const;
