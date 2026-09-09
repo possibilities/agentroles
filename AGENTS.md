@@ -1,5 +1,8 @@
 # agentroles — repository guidance
 
+Read [ADR 0001](docs/adr/0001-roles-are-directories-delivered-by-argv.md)
+before changing role delivery or native-control ownership.
+
 One CLI that gives a harness invocation a role: it loads a role directory,
 renders that harness's native arguments, and execs the harness through PATH.
 The role directory format is the contract; README.md is its canonical
