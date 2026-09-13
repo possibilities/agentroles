@@ -1,3 +1,5 @@
+> *Slop Made With Sweat: Made with a lot of love by someone who loves code but read none of it.*
+
 # agentroles
 
 Give Claude Code, Codex or AgentVoice a role for one invocation. A role is a
