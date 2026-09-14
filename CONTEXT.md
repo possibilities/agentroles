@@ -24,3 +24,7 @@ named roles live. _Avoid_: registry, catalog.
 skills as a plugin in the `agentroles` marketplace, installing it with
 Codex's plugin CLI, and persisting it disabled through Codex's config editor.
 Launches then enable it per process. _Avoid_: activate, register.
+
+**Freshness check** — `agentroles install --check <role>`: a read-only,
+machine-readable comparison of the role's current skill tree with Codex's
+installed plugin copy. _Avoid_: sync, refresh (those imply mutation).

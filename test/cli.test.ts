@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { UsageError } from "../src/errors.ts";
 import { main, parseCommand } from "../src/main.ts";
@@ -36,12 +36,25 @@ describe("command grammar", () => {
     expect(parseCommand(["list"])).toEqual({ kind: "list" });
     expect(parseCommand(["show", "r"])).toEqual({ kind: "show", role: "r" });
     expect(parseCommand(["install", "r"])).toEqual({ kind: "install", role: "r" });
+    expect(parseCommand(["install", "--check", "r"])).toEqual({
+      kind: "install-check",
+      role: "r",
+    });
     expect(parseCommand(["r", "--", "claude", "-p", "x"])).toEqual({
       kind: "run",
       role: "r",
       command: ["claude", "-p", "x"],
     });
-    for (const argv of [["r"], ["r", "claude"], ["r", "--"], ["--bogus"], ["list", "x"], ["show"]])
+    for (const argv of [
+      ["r"],
+      ["r", "claude"],
+      ["r", "--"],
+      ["--bogus"],
+      ["list", "x"],
+      ["show"],
+      ["install", "--check"],
+      ["install", "--check", "r", "extra"],
+    ])
       expect(() => parseCommand(argv)).toThrow(UsageError);
   });
 });
@@ -210,6 +223,86 @@ describe("main", () => {
     }
   });
 
+  test("install --check reports missing, changed and extra plugin files without running Codex", async () => {
+    const s = sandbox();
+    const c = capture();
+    try {
+      const roleDir = s.role("r", {
+        "skills/one/SKILL.md": SKILL,
+        "skills/one/current.txt": "current\n",
+        "skills/one/missing.txt": "missing\n",
+      });
+      mkdirSync(join(roleDir, "skills", "one", "empty"));
+
+      expect(await main(["install", "--check", "r"], s.env)).toBe(1);
+      expect(JSON.parse(c.out.at(-1)!)).toEqual({
+        schema_version: 1,
+        role: "r",
+        plugin: "r@agentroles",
+        installed: false,
+        fresh: false,
+        missing: ["one", "one/SKILL.md", "one/current.txt", "one/empty", "one/missing.txt"],
+        extra: [],
+        changed: [],
+      });
+      expect(existsSync(s.env["FAKE_CODEX_LOG"]!)).toBe(false);
+
+      const installedSkills = join(
+        s.env["CODEX_HOME"]!,
+        "plugins",
+        "cache",
+        "agentroles",
+        "r",
+        "0.0.0",
+        "skills",
+        "one",
+      );
+      mkdirSync(installedSkills, { recursive: true });
+      writeFileSync(join(installedSkills, "SKILL.md"), SKILL);
+      writeFileSync(join(installedSkills, "current.txt"), "old\n");
+      writeFileSync(join(installedSkills, "extra.txt"), "extra\n");
+      mkdirSync(join(installedSkills, "spare"));
+
+      expect(await main(["install", "--check", "r"], s.env)).toBe(1);
+      expect(JSON.parse(c.out.at(-1)!)).toEqual({
+        schema_version: 1,
+        role: "r",
+        plugin: "r@agentroles",
+        installed: true,
+        fresh: false,
+        missing: ["one/empty", "one/missing.txt"],
+        extra: ["one/extra.txt", "one/spare"],
+        changed: ["one/current.txt"],
+      });
+      expect(existsSync(s.env["FAKE_CODEX_LOG"]!)).toBe(false);
+
+      writeFileSync(join(installedSkills, "current.txt"), "current\n");
+      writeFileSync(join(installedSkills, "missing.txt"), "missing\n");
+      rmSync(join(installedSkills, "extra.txt"));
+      rmSync(join(installedSkills, "spare"), { recursive: true });
+      mkdirSync(join(installedSkills, "empty"));
+      expect(await main(["install", "--check", "r"], s.env)).toBe(0);
+      expect(JSON.parse(c.out.at(-1)!)).toEqual({
+        schema_version: 1,
+        role: "r",
+        plugin: "r@agentroles",
+        installed: true,
+        fresh: true,
+        missing: [],
+        extra: [],
+        changed: [],
+      });
+      expect(existsSync(s.env["FAKE_CODEX_LOG"]!)).toBe(false);
+
+      s.role("empty");
+      expect(await main(["install", "--check", "empty"], s.env)).toBe(1);
+      expect(c.err.at(-1)).toContain("has no skills/");
+    } finally {
+      c.restore();
+      s.cleanup();
+    }
+  });
+
   test("list and show report without launching anything", async () => {
     const s = sandbox();
     const c = capture();
@@ -228,6 +321,7 @@ describe("main", () => {
       expect(shown).toContain("agentvoice: --role");
       expect(existsSync(s.env["FAKE_HARNESS_LOG"]!)).toBe(false);
       expect(await main(["--help"], s.env)).toBe(0);
+      expect(c.out.at(-1)).toContain("agentroles install --check <role>");
       expect(await main(["--version"], s.env)).toBe(0);
     } finally {
       c.restore();

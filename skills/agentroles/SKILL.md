@@ -17,6 +17,8 @@ AgentVoice's `VOICE_*.md` files. Create one by making the directory; there is
 no init command.
 
 Codex CLI skills need `agentroles install <role>` once per role and again
-after editing its skills; Claude Code and AgentVoice need no install. The
-harness's exit code is returned unchanged. The full contract is the
-agentroles README.
+after editing its skills. Before deciding whether to reinstall, run
+`agentroles install --check <role>`: it performs a read-only comparison and
+prints JSON; exit 0 means the installed copy is fresh, and exit 1 means it is
+absent or stale. Claude Code and AgentVoice need no install. The harness's exit
+code is returned unchanged. The full contract is the agentroles README.

@@ -5,7 +5,7 @@
  */
 import { homedir } from "node:os";
 import { basename } from "node:path";
-import { codexPluginInstalled, installCodexPlugin } from "./codex-plugin.ts";
+import { checkCodexPlugin, codexPluginInstalled, installCodexPlugin } from "./codex-plugin.ts";
 import { agentvoiceArguments } from "./deliver/agentvoice.ts";
 import { claudeArguments } from "./deliver/claude.ts";
 import { codexArguments, codexOverrides, codexPluginId } from "./deliver/codex.ts";
@@ -29,6 +29,7 @@ Usage:
   agentroles list
   agentroles show <role>
   agentroles install <role>        install the role's skills as a disabled Codex plugin
+  agentroles install --check <role> compare the role's skills with Codex's installed copy (JSON)
   agentroles --help | --version
 
 <role> is a name under $AGENTROLES_HOME (default ~/.config/agentroles) or a
@@ -38,12 +39,12 @@ directory path. A role directory holds any of:
   mcp.json                                        MCP servers, .mcp.json shape
   VOICE_*.md                                      AgentVoice's voice prompts
 
-The harness runs through PATH, so fleet shims still apply. Exit code is the
-harness's own.
+The harness runs through PATH, so fleet shims still apply. Its exit code is
+returned unchanged. For install --check, 0 means fresh and 1 means absent or stale.
 `;
 
 export interface Command {
-  kind: "run" | "list" | "show" | "install" | "help" | "version";
+  kind: "run" | "list" | "show" | "install" | "install-check" | "help" | "version";
   role?: string;
   command?: string[];
 }
@@ -55,6 +56,12 @@ export function parseCommand(argv: string[]): Command {
   if (first === "list") {
     if (rest.length > 0) throw new UsageError("list takes no arguments");
     return { kind: "list" };
+  }
+  if (first === "install" && rest[0] === "--check") {
+    const [role, ...extra] = rest.slice(1);
+    if (role === undefined || extra.length > 0)
+      throw new UsageError("install --check takes exactly one role");
+    return { kind: "install-check", role };
   }
   if (first === "show" || first === "install") {
     const [role, ...extra] = rest;
@@ -178,6 +185,11 @@ export async function main(argv: string[], env: Environ = process.env): Promise<
           console.error(`agentroles: ${line}`),
         );
         return 0;
+      case "install-check": {
+        const result = checkCodexPlugin(load(command.role!, env, home), env, home);
+        console.log(JSON.stringify(result));
+        return result.fresh ? 0 : 1;
+      }
       case "run": {
         const role = load(command.role!, env, home);
         const delivery = deliver(role, command.command!, env, home);

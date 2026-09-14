@@ -92,6 +92,20 @@ forward. Reinstalling a worker does not remove another role's cached plugin;
 the other plugin remains installed and inert. Refresh every changed role after
 editing its skills.
 
+`agentroles install --check <role>` checks that copy without changing it. It
+reads the current and installed `skills/` trees, compares file bytes, and prints
+one JSON object:
+
+```json
+{"schema_version":1,"role":"researcher","plugin":"researcher@agentroles","installed":true,"fresh":false,"missing":["search/SKILL.md"],"extra":[],"changed":["review/SKILL.md"]}
+```
+
+The three file-or-directory path lists are sorted and relative to `skills/`;
+file contents are never printed. Exit 0 means installed and fresh, while an
+absent or stale copy exits 1. The check does not run Codex, render the
+marketplace, or read or write Codex configuration. Roles without skills have
+nothing to install or check.
+
 ## Commands
 
 ```
@@ -99,11 +113,13 @@ agentroles <role> -- <claude|codex|agentvoice> [harness arguments...]
 agentroles list                  roles under the roles home
 agentroles show <role>           files, skills, servers and each harness's arguments
 agentroles install <role>        Codex plugin install, as above
+agentroles install --check <role> JSON freshness check for the installed Codex plugin
 agentroles --help | --version
 ```
 
-Exit codes: the harness's own for a run, 64 for usage errors, 1 for a role or
-delivery problem, each with the reason and, where one exists, the fix.
+Exit codes: the harness's own for a run, 64 for usage errors, and 1 for an
+absent or stale plugin check or a role/delivery problem. Errors include the
+reason and, where one exists, the fix.
 
 ## Limits
 

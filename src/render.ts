@@ -30,11 +30,12 @@ export function renderClaudePlugin(role: Role, cacheRoot: string): string {
 }
 
 export const CODEX_MARKETPLACE = "agentroles";
+export const CODEX_PLUGIN_VERSION = "0.0.0";
 
 export function codexPluginManifest(role: Role): Record<string, unknown> {
   return {
     name: role.name,
-    version: "0.0.0",
+    version: CODEX_PLUGIN_VERSION,
     description: `agentroles role ${role.name} (${role.dir})`,
     author: { name: "agentroles" },
     license: "UNLICENSED",
