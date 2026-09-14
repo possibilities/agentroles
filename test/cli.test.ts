@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { UsageError } from "../src/errors.ts";
 import { main, parseCommand } from "../src/main.ts";
@@ -71,6 +71,7 @@ describe("main", () => {
       ]);
       expect(log).toContain(`AGENTROLES_ROLE=${dir}`);
       expect(log).toContain("AGENTROLES_NAME=r");
+      expect(log).toContain("AGENTLAUNCH_ROLE_RESOURCES=agentroles-v1");
       expect(existsSync(join(pluginDir, ".claude-plugin", "plugin.json"))).toBe(true);
       expect(existsSync(join(pluginDir, "skills", "one", "SKILL.md"))).toBe(true);
 
@@ -81,6 +82,33 @@ describe("main", () => {
         dir,
         "--allow-full-access",
       ]);
+      expect(readFileSync(s.env["FAKE_HARNESS_LOG"]!, "utf8").split("\n")).toContain(
+        "AGENTLAUNCH_ROLE_RESOURCES=",
+      );
+
+      expect(
+        await main(["r", "--", "claude"], {
+          ...s.env,
+          AGENTLAUNCH_ROLE_RESOURCES: "stale-parent-value",
+        }),
+      ).toBe(0);
+      expect(readFileSync(s.env["FAKE_HARNESS_LOG"]!, "utf8")).toContain(
+        "AGENTLAUNCH_ROLE_RESOURCES=agentroles-v1",
+      );
+
+      const codexRole = s.role("codex-role", {
+        "mcp.json": JSON.stringify({ mcpServers: { srv: { command: "srv" } } }),
+      });
+      writeFileSync(
+        join(s.home, "bin", "codex"),
+        `#!/usr/bin/env bash\nexec "${join(import.meta.dir, "fixtures", "fake-harness")}" "$@"\n`,
+        { mode: 0o755 },
+      );
+      expect(await main(["codex-role", "--", "codex", "exec", "go"], s.env)).toBe(0);
+      const codexEnv = readFileSync(s.env["FAKE_HARNESS_LOG"]!, "utf8").split("\n");
+      expect(codexEnv).toContain(`AGENTROLES_ROLE=${codexRole}`);
+      expect(codexEnv).toContain("AGENTROLES_NAME=codex-role");
+      expect(codexEnv).toContain("AGENTLAUNCH_ROLE_RESOURCES=agentroles-v1");
 
       expect(await main(["r", "--", "claude"], { ...s.env, FAKE_HARNESS_EXIT: "7" })).toBe(7);
       expect(await main(["r", "--", "python"], s.env)).toBe(1);
@@ -151,6 +179,23 @@ describe("main", () => {
       expect(added).toEqual([]);
       const merged = JSON.parse(readFileSync(manifestPath, "utf8"));
       expect(merged.plugins.map((p: { name: string }) => p.name)).toEqual(["r", "t"]);
+      const disabledWrites = codexCalls(codexLog).filter(
+        (call) =>
+          typeof call === "object" &&
+          call !== null &&
+          (call as { method?: string }).method === "config/value/write",
+      ) as Array<{ params: { keyPath: string; value: boolean } }>;
+      expect(disabledWrites.map((call) => [call.params.keyPath, call.params.value])).toEqual([
+        ['plugins."r@agentroles".enabled', false],
+        ['plugins."t@agentroles".enabled', false],
+      ]);
+
+      // Role selection is process-local. The second launch enables only t;
+      // the earlier r registration stays installed and disabled.
+      expect(await main(["t", "--", "codex", "exec", "go"], s.env)).toBe(0);
+      const switched = codexCalls(codexLog).at(-1) as string[];
+      expect(switched).toEqual(["exec", "-c", "plugins.t@agentroles.enabled=true", "go"]);
+      expect(switched).not.toContain("plugins.r@agentroles.enabled=true");
 
       expect(await main(["install", "r"], { ...s.env, FAKE_CODEX_ADD_FAIL: "1" })).toBe(1);
       expect(c.err.at(-1)).toContain("plugin add exploded");

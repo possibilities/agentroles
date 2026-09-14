@@ -12,7 +12,10 @@ _Avoid_: backend, provider.
 
 **Delivery** — The harness-specific rendering of a role into command-line
 arguments (and, for Claude, a rendered plugin directory), followed by running
-the harness through PATH. _Avoid_: injection, mangling.
+the harness through PATH. For direct Claude/Codex delivery, the role is the
+complete skill/MCP layer; omissions remain absent when the AgentLaunch shim
+applies its separate account, model, effort, and yolo policy. _Avoid_: injection,
+mangling.
 
 **Roles home** — `$AGENTROLES_HOME`, default `~/.config/agentroles`, where
 named roles live. _Avoid_: registry, catalog.

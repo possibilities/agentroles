@@ -1,7 +1,8 @@
 # agentroles — repository guidance
 
-Read [ADR 0001](docs/adr/0001-roles-are-directories-delivered-by-argv.md)
-before changing role delivery or native-control ownership.
+Read [ADR 0001](docs/adr/0001-roles-are-directories-delivered-by-argv.md) and
+[ADR 0002](docs/adr/0002-explicit-roles-own-their-resources.md) before
+changing role delivery or native-control ownership.
 
 One CLI that gives a harness invocation a role: it loads a role directory,
 renders that harness's native arguments, and execs the harness through PATH.
@@ -40,11 +41,16 @@ accounts, workspaces or harness configuration beyond the four capabilities.
 - Launching writes nothing outside `~/.cache/agentroles`. Only `install` changes
   Codex state, only through Codex tooling, and only to install a plugin that
   stays disabled globally.
-- Never set `skills.config` for Codex: the AgentLaunch shim prepends its own
-  and a later `-c` for the same key would replace the fleet's. Plugin-level
-  enablement is the per-process mechanism.
+- Never set `skills.config` for Codex. AgentLaunch owns that key for ordinary
+  fleet launches; an explicit role omits it and selects only its inert role
+  plugin. Plugin-level enablement is the per-process role mechanism.
 - The harness runs through PATH so fleet shims keep their policy; do not
   bypass them.
+- Direct Claude/Codex delivery marks this role as the complete skill/MCP layer
+  for the immediate AgentLaunch shim. AgentLaunch consumes the private marker
+  before the native child starts, while `AGENTROLES_ROLE` and
+  `AGENTROLES_NAME` remain available to role-aware skills. AgentVoice receives
+  no marker because it reads the role itself.
 - Role and MCP server names stay within `[A-Za-z0-9][A-Za-z0-9_-]*`; they are
   unquoted Codex key segments and plugin ids.
 

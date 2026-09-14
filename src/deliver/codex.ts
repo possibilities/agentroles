@@ -11,9 +11,8 @@ export function codexPluginId(role: Role): string {
 }
 
 /**
- * The AgentLaunch shim prepends its own `-c skills.config=...`; a role must
- * never set that key or it would replace the fleet's. Plugin-level enablement
- * is a different key, and the plugin itself is installed inert.
+ * AgentLaunch owns `skills.config` for ordinary fleet launches and omits it
+ * for explicit roles. A role selects only its own globally inert plugin.
  */
 export function codexOverrides(role: Role, pluginInstalled: boolean): string[] {
   const overrides: string[] = [];

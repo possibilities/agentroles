@@ -2,6 +2,10 @@ import { RoleError } from "./errors.ts";
 import type { Environ } from "./paths.ts";
 import type { Role } from "./role.ts";
 
+/** Private one-shot contract consumed by the immediate AgentLaunch shim. */
+export const AGENTLAUNCH_ROLE_RESOURCES = "AGENTLAUNCH_ROLE_RESOURCES";
+export const AGENTLAUNCH_ROLE_RESOURCES_VERSION = "agentroles-v1";
+
 const SIGNAL_EXIT: Record<string, number> = {
   SIGHUP: 129,
   SIGINT: 130,
@@ -28,14 +32,20 @@ export async function runHarness(
 ): Promise<number> {
   const [bin, ...rest] = command;
   if (bin === undefined) throw new RoleError("no harness command given after --");
+  const harness = bin.split("/").at(-1);
+  const childEnv: Environ = {
+    ...env,
+    AGENTROLES_ROLE: role.dir,
+    AGENTROLES_NAME: role.name,
+  };
+  if (harness === "claude" || harness === "codex")
+    childEnv[AGENTLAUNCH_ROLE_RESOURCES] = AGENTLAUNCH_ROLE_RESOURCES_VERSION;
+  else delete childEnv[AGENTLAUNCH_ROLE_RESOURCES];
   const child = Bun.spawn([resolveBinary(bin, env), ...rest], {
     stdin: "inherit",
     stdout: "inherit",
     stderr: "inherit",
-    env: { ...env, AGENTROLES_ROLE: role.dir, AGENTROLES_NAME: role.name } as Record<
-      string,
-      string
-    >,
+    env: childEnv as Record<string, string>,
   });
   const forward = (signal: "SIGTERM" | "SIGHUP") => (): void => {
     try {

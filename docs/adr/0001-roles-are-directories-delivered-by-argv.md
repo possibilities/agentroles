@@ -1,5 +1,8 @@
 # 0001: Roles are directories delivered by argv
 
+Resource composition for direct Claude/Codex delivery is narrowed by
+[ADR 0002](0002-explicit-roles-own-their-resources.md).
+
 Accepted 2026-09-05.
 
 A role is a plain directory whose files each map to one native control of the

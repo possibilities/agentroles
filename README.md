@@ -54,10 +54,18 @@ only its own process can register skill roots with the child it owns. See its
 README section "Roles" for the voice-side rules.
 
 The harness is found on `PATH`, so the AgentLaunch shims still apply their
-fleet policy first. Codex options go after `exec`/`review` or `resume <id>`
+account, model, effort, and yolo policy. For direct Claude and Codex launches,
+the explicit role is the complete skill/MCP layer: AgentLaunch keeps these
+native role arguments and does not add its fixed Claude plugin, Codex skill
+enables, or MCP definitions. Omitting a skill or server from the role makes it
+unavailable for that invocation. Codex options go after `exec`/`review` or `resume <id>`
 and before anything else, mirroring AgentLaunch. The child also receives
 `AGENTROLES_ROLE=<dir>` and `AGENTROLES_NAME=<name>` in its environment, and
-its exit code is agentroles' exit code.
+its exit code is agentroles' exit code. AgentRoles sends a private one-shot
+resource marker to the immediate AgentLaunch shim; AgentLaunch consumes it
+before starting the native child, so nested harness launches receive their
+ordinary fleet defaults. AgentVoice receives no marker because it reads
+`--role <dir>` itself.
 
 ## Codex skills need one install
 
@@ -77,8 +85,12 @@ plugin. `agentroles install <role>`:
 That is the one command that changes Codex state, and it uses only Codex's
 tooling. Re-run it after editing the role's skills; Codex keeps a copy, not a
 link. Roles without `skills/` need no install for Codex. Plugin enablement is a
-different config key from the fleet's `skills.config`, so it never replaces
-AgentLaunch's own skill policy.
+process-local config key. Each role install persists that plugin disabled;
+launching a role enables only that role's plugin for the new process. Switching
+from a manager role to a worker role does not carry the manager enablement
+forward. Reinstalling a worker does not remove another role's cached plugin;
+the other plugin remains installed and inert. Refresh every changed role after
+editing its skills.
 
 ## Commands
 
