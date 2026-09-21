@@ -13,6 +13,7 @@ export function sandbox() {
   for (const [name, source] of [
     ["claude", "fake-harness"],
     ["agentvoice", "fake-harness"],
+    ["fx", "fake-harness"],
     ["codex", "fake-codex"],
   ] as const) {
     writeFileSync(join(bin, name), `#!/usr/bin/env bash\nexec "${join(fixtures, source)}" "$@"\n`, {

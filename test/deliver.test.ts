@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { agentvoiceArguments } from "../src/deliver/agentvoice.ts";
 import { claudeArguments } from "../src/deliver/claude.ts";
 import { codexArguments, codexCommandIndex, codexOverrides } from "../src/deliver/codex.ts";
+import { fxArguments } from "../src/deliver/fx.ts";
 import { RoleError } from "../src/errors.ts";
 import { loadRole } from "../src/role.ts";
 import { SKILL, sandbox } from "./fixtures/roles.ts";
@@ -37,6 +38,22 @@ describe("deliveries", () => {
         dir,
         "--allow-full-access",
       ]);
+      expect(fxArguments(role, ["ask", "hi"])).toEqual([
+        "--append-system-prompt-file",
+        join(dir, "APPEND_SYSTEM_PROMPT.md"),
+        "--mcp-config",
+        join(dir, "mcp.json"),
+        "--skills-dir",
+        join(dir, "skills"),
+        "--no-default-skills",
+        "ask",
+        "hi",
+      ]);
+      expect(fxArguments(replace, [])).toEqual([
+        "--system-prompt-file",
+        join(s.roles, "s", "SYSTEM_PROMPT.md"),
+      ]);
+      expect(fxArguments(loadRole(s.role("empty")), [])).toEqual([]);
     } finally {
       s.cleanup();
     }

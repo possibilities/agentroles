@@ -2,7 +2,7 @@
 
 # agentroles
 
-Give Claude Code, Codex or AgentVoice a role for one invocation. A role is a
+Give Claude Code, Codex, AgentVoice or Fx a role for one invocation. A role is a
 directory of skills, MCP servers and prompt files; `agentroles` delivers it to
 the harness you name by command-line arguments and runs that harness. Nothing
 in the role touches global harness state, the account, the workspace or
@@ -12,6 +12,7 @@ session history, and two shells can run two roles side by side.
 agentroles researcher -- claude -p "Summarize the papers in ./inbox"
 agentroles researcher -- codex exec "Summarize the papers in ./inbox"
 agentroles researcher -- agentvoice --allow-full-access
+agentroles researcher -- fx
 ```
 
 ## The role directory
@@ -41,13 +42,13 @@ the role-name rule; each server has exactly one of `command` or `url`.
 
 ## What each harness receives
 
-| Capability | Claude Code | Codex CLI | AgentVoice |
-| --- | --- | --- | --- |
-| `SYSTEM_PROMPT.md` | `--system-prompt-file` | `-c model_instructions_file=<path>` | `baseInstructions` on the working thread |
-| `APPEND_SYSTEM_PROMPT.md` | `--append-system-prompt-file` | `-c developer_instructions="<text>"` (Codex's developer message after its base prompt) | `developerInstructions` on the working thread |
-| `mcp.json` | `--mcp-config <role>/mcp.json` | one `-c mcp_servers.<name>={...}` per server, `type` dropped and `headers` renamed `http_headers` (`sse` is rejected) | per-thread `mcp_servers` config |
-| `skills/` | `--plugin-dir` on a plugin rendered under `~/.cache/agentroles/claude/<name>/` on every launch; skills appear as `/<name>:<skill>` | `-c plugins.<name>@agentroles.enabled=true` on a plugin installed once by `agentroles install`; skills appear as `$<name>:<skill>` | `skills/extraRoots/set` on the Codex child AgentVoice owns; skills appear under their own names |
-| `VOICE_*` files | ignored | ignored | read natively |
+| Capability | Claude Code | Codex CLI | AgentVoice | Fx |
+| --- | --- | --- | --- | --- |
+| `SYSTEM_PROMPT.md` | `--system-prompt-file` | `-c model_instructions_file=<path>` | `baseInstructions` on the working thread | `--system-prompt-file` |
+| `APPEND_SYSTEM_PROMPT.md` | `--append-system-prompt-file` | `-c developer_instructions="<text>"` (Codex's developer message after its base prompt) | `developerInstructions` on the working thread | `--append-system-prompt-file` |
+| `mcp.json` | `--mcp-config <role>/mcp.json` | one `-c mcp_servers.<name>={...}` per server, `type` dropped and `headers` renamed `http_headers` (`sse` is rejected) | per-thread `mcp_servers` config | `--mcp-config <role>/mcp.json`; replaces `~/.fx/mcp.json` for that process (`mcpServers` is accepted as a profile alias) |
+| `skills/` | `--plugin-dir` on a plugin rendered under `~/.cache/agentroles/claude/<name>/` on every launch; skills appear as `/<name>:<skill>` | `-c plugins.<name>@agentroles.enabled=true` on a plugin installed once by `agentroles install`; skills appear as `$<name>:<skill>` | `skills/extraRoots/set` on the Codex child AgentVoice owns; skills appear under their own names | `--skills-dir <role>/skills` and `--no-default-skills` when the role has `skills/`; skills appear under their own names |
+| `VOICE_*` files | ignored | ignored | read natively | ignored |
 
 AgentVoice receives only `--role <dir>` and reads the directory itself, since
 only its own process can register skill roots with the child it owns. See its
@@ -59,13 +60,15 @@ the explicit role is the complete skill/MCP layer: AgentLaunch keeps these
 native role arguments and does not add its fixed Claude plugin, Codex skill
 enables, or MCP definitions. Omitting a skill or server from the role makes it
 unavailable for that invocation. Codex options go after `exec`/`review` or `resume <id>`
-and before anything else, mirroring AgentLaunch. The child also receives
+and before anything else, mirroring AgentLaunch. Fx flags go before the user's
+tokens, like Claude's. The child also receives
 `AGENTROLES_ROLE=<dir>` and `AGENTROLES_NAME=<name>` in its environment, and
 its exit code is agentroles' exit code. AgentRoles sends a private one-shot
 resource marker to the immediate AgentLaunch shim; AgentLaunch consumes it
 before starting the native child, so nested harness launches receive their
 ordinary fleet defaults. AgentVoice receives no marker because it reads
-`--role <dir>` itself.
+`--role <dir>` itself. Fx receives no marker because it is not launched
+through AgentLaunch.
 
 ## Codex skills need one install
 
@@ -109,7 +112,7 @@ nothing to install or check.
 ## Commands
 
 ```
-agentroles <role> -- <claude|codex|agentvoice> [harness arguments...]
+agentroles <role> -- <claude|codex|agentvoice|fx> [harness arguments...]
 agentroles list                  roles under the roles home
 agentroles show <role>           files, skills, servers and each harness's arguments
 agentroles install <role>        Codex plugin install, as above
@@ -125,10 +128,14 @@ reason and, where one exists, the fix.
 
 - `mcp.json` values pass through untouched; `${VAR}` expansion is whatever the
   harness does. Codex needs `bearer_token_env_var` rather than an inline token.
+  Fx's `--mcp-config` path does not expand `${HOME}`; use a rendered role whose
+  commands are already absolute. A missing file currently loads as empty rather
+  than failing. Workspace `.mcp.json` can still add extra servers after trust.
 - `APPEND_SYSTEM_PROMPT.md` travels inside Codex's argv, which suits prompts,
   not large documents.
 - Claude Code loads the rendered plugin for that session only. Codex keeps its
-  installed copy until the next `agentroles install`.
+  installed copy until the next `agentroles install`. Fx reads the role's
+  `skills/` in place and needs no install.
 - Harness configuration beyond these four capabilities (models, permissions,
   extra flags) is not part of a role yet.
 

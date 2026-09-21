@@ -9,6 +9,7 @@ import { checkCodexPlugin, codexPluginInstalled, installCodexPlugin } from "./co
 import { agentvoiceArguments } from "./deliver/agentvoice.ts";
 import { claudeArguments } from "./deliver/claude.ts";
 import { codexArguments, codexOverrides, codexPluginId } from "./deliver/codex.ts";
+import { fxArguments } from "./deliver/fx.ts";
 import { RoleError, UsageError } from "./errors.ts";
 import { runHarness } from "./exec.ts";
 import { cacheHome, type Environ, rolesHome } from "./paths.ts";
@@ -16,16 +17,16 @@ import { renderClaudePlugin } from "./render.ts";
 import { listRoles, loadRole, type Role, resolveRolePath } from "./role.ts";
 
 export const VERSION = "0.1.0";
-export const HARNESSES = ["claude", "codex", "agentvoice"] as const;
+export const HARNESSES = ["claude", "codex", "agentvoice", "fx"] as const;
 export type Harness = (typeof HARNESSES)[number];
 
 export const HELP = `agentroles ${VERSION}
 
-Give Claude Code, Codex or AgentVoice a role for one invocation: the role
+Give Claude Code, Codex, AgentVoice or Fx a role for one invocation: the role
 directory's skills, MCP servers and prompt files apply to that process only.
 
 Usage:
-  agentroles <role> -- <claude|codex|agentvoice> [harness arguments...]
+  agentroles <role> -- <claude|codex|agentvoice|fx> [harness arguments...]
   agentroles list
   agentroles show <role>
   agentroles install <role>        install the role's skills as a disabled Codex plugin
@@ -73,7 +74,7 @@ export function parseCommand(argv: string[]): Command {
   const separator = rest.indexOf("--");
   if (separator !== 0)
     throw new UsageError(
-      `expected "agentroles ${first} -- <claude|codex|agentvoice> [arguments...]"`,
+      `expected "agentroles ${first} -- <claude|codex|agentvoice|fx> [arguments...]"`,
     );
   const command = rest.slice(1);
   if (command.length === 0) throw new UsageError("no harness command given after --");
@@ -110,6 +111,8 @@ export function deliver(role: Role, command: string[], env: Environ, home: strin
     }
     case "agentvoice":
       return { harness, command: [bin, ...agentvoiceArguments(role, native)] };
+    case "fx":
+      return { harness, command: [bin, ...fxArguments(role, native)] };
   }
 }
 

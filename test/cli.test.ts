@@ -99,6 +99,21 @@ describe("main", () => {
         "AGENTLAUNCH_ROLE_RESOURCES=",
       );
 
+      expect(await main(["r", "--", "fx"], s.env)).toBe(0);
+      expect(readFileSync(s.env["FAKE_HARNESS_LOG"]!, "utf8").split("\n").slice(0, 8)).toEqual([
+        "fake-harness",
+        "--append-system-prompt-file",
+        join(dir, "APPEND_SYSTEM_PROMPT.md"),
+        "--mcp-config",
+        join(dir, "mcp.json"),
+        "--skills-dir",
+        join(dir, "skills"),
+        "--no-default-skills",
+      ]);
+      expect(readFileSync(s.env["FAKE_HARNESS_LOG"]!, "utf8").split("\n")).toContain(
+        "AGENTLAUNCH_ROLE_RESOURCES=",
+      );
+
       expect(
         await main(["r", "--", "claude"], {
           ...s.env,
@@ -319,6 +334,8 @@ describe("main", () => {
       expect(shown).toContain("not installed (agentroles install)");
       expect(shown).toContain("codex: role a has skills but its Codex plugin");
       expect(shown).toContain("agentvoice: --role");
+      expect(shown).toContain("fx: --skills-dir");
+      expect(shown).toContain("--no-default-skills");
       expect(existsSync(s.env["FAKE_HARNESS_LOG"]!)).toBe(false);
       expect(await main(["--help"], s.env)).toBe(0);
       expect(c.out.at(-1)).toContain("agentroles install --check <role>");

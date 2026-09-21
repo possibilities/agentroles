@@ -19,4 +19,8 @@ through Codex's config editor; launches enable it with `-c plugins.<id>.enabled`
 Setting `skills.config` was rejected because the AgentLaunch shim prepends its
 own value for that key and a later `-c` would replace the fleet's. AgentVoice
 reads the directory natively (`--role`) because only its process can call
-`skills/extraRoots/set` on the child it owns.
+`skills/extraRoots/set` on the child it owns. Fx receives Claude-shaped native
+flags (`--system-prompt-file` / `--append-system-prompt-file`, `--mcp-config`,
+and `--skills-dir` plus `--no-default-skills` when the role has `skills/`)
+because those controls already exist on the process; it has no AgentLaunch
+overlay, so no resource marker is sent.

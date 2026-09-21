@@ -24,8 +24,9 @@ accounts, workspaces or harness configuration beyond the four capabilities.
 - `src/main.ts`: command grammar, `deliver()` (harness → argv), exit codes.
 - `src/role.ts`: role resolution and loading; every validation a harness would
   otherwise discover late (exclusive prompt files, skill layout, mcp.json shape).
-- `src/deliver/{claude,codex,agentvoice}.ts`: pure argv rendering. Codex
+- `src/deliver/{claude,codex,agentvoice,fx}.ts`: pure argv rendering. Codex
   placement mirrors AgentLaunch (after `exec`/`review`, after `resume <id>`).
+  Fx flags go before the user's tokens, like Claude.
 - `src/mcp.ts`, `src/toml.ts`: `.mcp.json` parsing and the Codex translation;
   TOML rendering that Codex's `-c` parser accepts verbatim.
 - `src/render.ts`: cache-rendered Claude plugin and Codex marketplace; always
@@ -59,5 +60,5 @@ accounts, workspaces or harness configuration beyond the four capabilities.
 This checkout is one of the agent* fleet under `~/code`. `skills/agentroles/`
 ships into AgentStart's fixed fleet resources through
 `~/code/agentstart/scripts/sync-skills`. Cross-tool calls (claude, codex,
-agentvoice, and AgentVoice's `--role`) belong in
+agentvoice, fx, and AgentVoice's `--role`) belong in
 `~/code/agentstart/skills/fleet/MAP.md`; keep it current with any change here.
