@@ -5,7 +5,8 @@ Read [ADR 0001](docs/adr/0001-roles-are-directories-delivered-by-argv.md) and
 changing role delivery or native-control ownership.
 
 One CLI that gives a harness invocation a role: it loads a role directory,
-renders that harness's native arguments, and execs the harness through PATH.
+renders that harness's native arguments or env, and execs the harness through
+PATH.
 The role directory format is the contract; README.md is its canonical
 description and CONTEXT.md its vocabulary. Nothing here owns sessions,
 accounts, workspaces or harness configuration beyond the four capabilities.
@@ -21,16 +22,17 @@ accounts, workspaces or harness configuration beyond the four capabilities.
 
 ## Source map
 
-- `src/main.ts`: command grammar, `deliver()` (harness → argv), exit codes.
+- `src/main.ts`: command grammar, `deliver()` (harness → argv/env), exit codes.
 - `src/role.ts`: role resolution and loading; every validation a harness would
   otherwise discover late (exclusive prompt files, skill layout, mcp.json shape).
-- `src/deliver/{claude,codex,agentvoice,fx}.ts`: pure argv rendering. Codex
-  placement mirrors AgentLaunch (after `exec`/`review`, after `resume <id>`).
-  Fx flags go before the user's tokens, like Claude.
-- `src/mcp.ts`, `src/toml.ts`: `.mcp.json` parsing and the Codex translation;
-  TOML rendering that Codex's `-c` parser accepts verbatim.
-- `src/render.ts`: cache-rendered Claude plugin and Codex marketplace; always
-  regenerated, never edited in place.
+- `src/deliver/{claude,codex,agentvoice,fx,opencode}.ts`: pure argv or env
+  rendering. Codex placement mirrors AgentLaunch (after `exec`/`review`, after
+  `resume <id>`). Fx flags go before the user's tokens, like Claude. OpenCode
+  has no role argv; it sets `OPENCODE_CONFIG` to a cache-rendered JSON.
+- `src/mcp.ts`, `src/toml.ts`: `.mcp.json` parsing and the Codex/OpenCode
+  translations; TOML rendering that Codex's `-c` parser accepts verbatim.
+- `src/render.ts`: cache-rendered Claude plugin, Codex marketplace and OpenCode
+  config; always regenerated, never edited in place.
 - `src/codex-plugin.ts`, `src/app-server.ts`: `install` through Codex's own
   plugin CLI and config editor RPC; the only path that writes Codex state.
 - `src/exec.ts`: PATH resolution, signal forwarding, exit-code mapping.
@@ -50,8 +52,8 @@ accounts, workspaces or harness configuration beyond the four capabilities.
 - Direct Claude/Codex delivery marks this role as the complete skill/MCP layer
   for the immediate AgentLaunch shim. AgentLaunch consumes the private marker
   before the native child starts, while `AGENTROLES_ROLE` and
-  `AGENTROLES_NAME` remain available to role-aware skills. AgentVoice receives
-  no marker because it reads the role itself.
+  `AGENTROLES_NAME` remain available to role-aware skills. AgentVoice, Fx and
+  OpenCode receive no marker.
 - Role and MCP server names stay within `[A-Za-z0-9][A-Za-z0-9_-]*`; they are
   unquoted Codex key segments and plugin ids.
 
@@ -60,5 +62,5 @@ accounts, workspaces or harness configuration beyond the four capabilities.
 This checkout is one of the agent* fleet under `~/code`. `skills/agentroles/`
 ships into AgentStart's fixed fleet resources through
 `~/code/agentstart/scripts/sync-skills`. Cross-tool calls (claude, codex,
-agentvoice, fx, and AgentVoice's `--role`) belong in
+agentvoice, fx, opencode, and AgentVoice's `--role`) belong in
 `~/code/agentstart/skills/fleet/MAP.md`; keep it current with any change here.

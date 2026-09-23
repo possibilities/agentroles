@@ -1,7 +1,7 @@
 {
   "name": "agentroles",
   "version": "0.1.0",
-  "description": "Give Claude Code, Codex, AgentVoice or Fx a role for one invocation: skills, MCP servers and prompts from a directory",
+  "description": "Give Claude Code, Codex, AgentVoice, Fx or OpenCode a role for one invocation: skills, MCP servers and prompts from a directory",
   "private": true,
   "type": "module",
   "bin": {

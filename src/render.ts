@@ -29,6 +29,24 @@ export function renderClaudePlugin(role: Role, cacheRoot: string): string {
   return target;
 }
 
+/**
+ * OpenCode loads extra per-process config from OPENCODE_CONFIG. Regenerated
+ * on every launch, never edited in place. Skills stay in the role directory;
+ * only the JSON OpenCode reads is copied into cache.
+ */
+export function renderOpencodeConfig(
+  role: Role,
+  cacheRoot: string,
+  config: Record<string, unknown>,
+): string {
+  const target = join(cacheRoot, "opencode", role.name);
+  rmSync(target, { recursive: true, force: true });
+  mkdirSync(target, { recursive: true });
+  const path = join(target, "opencode.json");
+  writeFileSync(path, `${JSON.stringify(config, null, 2)}\n`);
+  return path;
+}
+
 export const CODEX_MARKETPLACE = "agentroles";
 export const CODEX_PLUGIN_VERSION = "0.0.0";
 

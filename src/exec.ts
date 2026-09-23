@@ -29,6 +29,7 @@ export async function runHarness(
   role: Role,
   command: string[],
   env: Environ = process.env,
+  extra: Environ = {},
 ): Promise<number> {
   const [bin, ...rest] = command;
   if (bin === undefined) throw new RoleError("no harness command given after --");
@@ -38,6 +39,10 @@ export async function runHarness(
     AGENTROLES_ROLE: role.dir,
     AGENTROLES_NAME: role.name,
   };
+  for (const [key, value] of Object.entries(extra)) {
+    if (value === undefined) delete childEnv[key];
+    else childEnv[key] = value;
+  }
   if (harness === "claude" || harness === "codex")
     childEnv[AGENTLAUNCH_ROLE_RESOURCES] = AGENTLAUNCH_ROLE_RESOURCES_VERSION;
   else delete childEnv[AGENTLAUNCH_ROLE_RESOURCES];

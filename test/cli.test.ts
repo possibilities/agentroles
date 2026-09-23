@@ -114,6 +114,33 @@ describe("main", () => {
         "AGENTLAUNCH_ROLE_RESOURCES=",
       );
 
+      expect(await main(["r", "--", "opencode", "run", "hi"], s.env)).toBe(0);
+      const opencodeLog = readFileSync(s.env["FAKE_HARNESS_LOG"]!, "utf8").split("\n");
+      const opencodeConfigPath = join(
+        s.home,
+        ".cache",
+        "agentroles",
+        "opencode",
+        "r",
+        "opencode.json",
+      );
+      expect(opencodeLog.slice(0, 3)).toEqual(["fake-harness", "run", "hi"]);
+      expect(opencodeLog).toContain(`OPENCODE_CONFIG=${opencodeConfigPath}`);
+      expect(opencodeLog).toContain("AGENTLAUNCH_ROLE_RESOURCES=");
+      expect(JSON.parse(readFileSync(opencodeConfigPath, "utf8"))).toEqual({
+        $schema: "https://opencode.ai/config.json",
+        instructions: [join(dir, "APPEND_SYSTEM_PROMPT.md")],
+        skills: { paths: [join(dir, "skills")] },
+        mcp: { srv: { type: "local", command: ["srv"] } },
+      });
+      s.role("empty-role");
+      expect(
+        await main(["empty-role", "--", "opencode"], { ...s.env, OPENCODE_CONFIG: "/stale.json" }),
+      ).toBe(0);
+      expect(readFileSync(s.env["FAKE_HARNESS_LOG"]!, "utf8").split("\n")).toContain(
+        "OPENCODE_CONFIG=",
+      );
+
       expect(
         await main(["r", "--", "claude"], {
           ...s.env,
@@ -336,6 +363,7 @@ describe("main", () => {
       expect(shown).toContain("agentvoice: --role");
       expect(shown).toContain("fx: --skills-dir");
       expect(shown).toContain("--no-default-skills");
+      expect(shown).toContain("opencode: OPENCODE_CONFIG=");
       expect(existsSync(s.env["FAKE_HARNESS_LOG"]!)).toBe(false);
       expect(await main(["--help"], s.env)).toBe(0);
       expect(c.out.at(-1)).toContain("agentroles install --check <role>");

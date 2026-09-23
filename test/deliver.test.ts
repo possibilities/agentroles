@@ -4,6 +4,7 @@ import { agentvoiceArguments } from "../src/deliver/agentvoice.ts";
 import { claudeArguments } from "../src/deliver/claude.ts";
 import { codexArguments, codexCommandIndex, codexOverrides } from "../src/deliver/codex.ts";
 import { fxArguments } from "../src/deliver/fx.ts";
+import { opencodeArguments, opencodeConfig } from "../src/deliver/opencode.ts";
 import { RoleError } from "../src/errors.ts";
 import { loadRole } from "../src/role.ts";
 import { SKILL, sandbox } from "./fixtures/roles.ts";
@@ -54,6 +55,18 @@ describe("deliveries", () => {
         join(s.roles, "s", "SYSTEM_PROMPT.md"),
       ]);
       expect(fxArguments(loadRole(s.role("empty")), [])).toEqual([]);
+      expect(opencodeArguments(["run", "hi"])).toEqual(["run", "hi"]);
+      expect(opencodeConfig(role)).toEqual({
+        $schema: "https://opencode.ai/config.json",
+        instructions: [join(dir, "APPEND_SYSTEM_PROMPT.md")],
+        skills: { paths: [join(dir, "skills")] },
+        mcp: { srv: { type: "local", command: ["srv"] } },
+      });
+      expect(opencodeConfig(replace)).toEqual({
+        $schema: "https://opencode.ai/config.json",
+        agent: { build: { prompt: "x" } },
+      });
+      expect(opencodeConfig(loadRole(s.role("empty")))).toBeNull();
     } finally {
       s.cleanup();
     }

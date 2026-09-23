@@ -7,18 +7,19 @@ path. Not an identity, account, workspace, or session. _Avoid_: capability,
 overlay, profile, preset.
 
 **Harness** — A program that runs an agent and that a role is delivered to:
-Claude Code (`claude`), the Codex CLI (`codex`), AgentVoice (`agentvoice`), or
-Fx (`fx`).
+Claude Code (`claude`), the Codex CLI (`codex`), AgentVoice (`agentvoice`),
+Fx (`fx`), or OpenCode (`opencode`).
 _Avoid_: backend, provider.
 
-**Delivery** — The harness-specific rendering of a role into command-line
-arguments (and, for Claude, a rendered plugin directory), followed by running
-the harness through PATH. For direct Claude/Codex delivery, the role is the
+**Delivery** — The harness-specific rendering of a role into native process
+controls (argv, and for OpenCode `OPENCODE_CONFIG`), followed by running the
+harness through PATH. For direct Claude/Codex delivery, the role is the
 complete skill/MCP layer; omissions remain absent when the AgentLaunch shim
 applies its separate account, model, effort, and yolo policy. Fx receives the
 same native prompt and MCP flags as Claude, plus `--skills-dir` and
-`--no-default-skills` when the role has `skills/`; it is not launched through
-AgentLaunch. _Avoid_: injection, mangling.
+`--no-default-skills` when the role has `skills/`. OpenCode receives a
+cache-rendered `opencode.json` via `OPENCODE_CONFIG`; neither Fx nor OpenCode
+is launched through AgentLaunch. _Avoid_: injection, mangling.
 
 **Roles home** — `$AGENTROLES_HOME`, default `~/.config/agentroles`, where
 named roles live. _Avoid_: registry, catalog.

@@ -10,23 +10,25 @@ import { agentvoiceArguments } from "./deliver/agentvoice.ts";
 import { claudeArguments } from "./deliver/claude.ts";
 import { codexArguments, codexOverrides, codexPluginId } from "./deliver/codex.ts";
 import { fxArguments } from "./deliver/fx.ts";
+import { opencodeArguments, opencodeConfig, opencodeEnv } from "./deliver/opencode.ts";
 import { RoleError, UsageError } from "./errors.ts";
 import { runHarness } from "./exec.ts";
 import { cacheHome, type Environ, rolesHome } from "./paths.ts";
-import { renderClaudePlugin } from "./render.ts";
+import { renderClaudePlugin, renderOpencodeConfig } from "./render.ts";
 import { listRoles, loadRole, type Role, resolveRolePath } from "./role.ts";
 
 export const VERSION = "0.1.0";
-export const HARNESSES = ["claude", "codex", "agentvoice", "fx"] as const;
+export const HARNESSES = ["claude", "codex", "agentvoice", "fx", "opencode"] as const;
 export type Harness = (typeof HARNESSES)[number];
 
 export const HELP = `agentroles ${VERSION}
 
-Give Claude Code, Codex, AgentVoice or Fx a role for one invocation: the role
-directory's skills, MCP servers and prompt files apply to that process only.
+Give Claude Code, Codex, AgentVoice, Fx or OpenCode a role for one invocation:
+the role directory's skills, MCP servers and prompt files apply to that process
+only.
 
 Usage:
-  agentroles <role> -- <claude|codex|agentvoice|fx> [harness arguments...]
+  agentroles <role> -- <claude|codex|agentvoice|fx|opencode> [harness arguments...]
   agentroles list
   agentroles show <role>
   agentroles install <role>        install the role's skills as a disabled Codex plugin
@@ -74,7 +76,7 @@ export function parseCommand(argv: string[]): Command {
   const separator = rest.indexOf("--");
   if (separator !== 0)
     throw new UsageError(
-      `expected "agentroles ${first} -- <claude|codex|agentvoice|fx> [arguments...]"`,
+      `expected "agentroles ${first} -- <claude|codex|agentvoice|fx|opencode> [arguments...]"`,
     );
   const command = rest.slice(1);
   if (command.length === 0) throw new UsageError("no harness command given after --");
@@ -93,9 +95,10 @@ export function harnessOf(command: string[]): Harness {
 export interface Delivery {
   harness: Harness;
   command: string[];
+  env?: Environ;
 }
 
-/** Renders the full command; only Claude needs a file rendered before launch. */
+/** Renders the full command; Claude and OpenCode write cache files before launch. */
 export function deliver(role: Role, command: string[], env: Environ, home: string): Delivery {
   const harness = harnessOf(command);
   const [bin, ...native] = command as [string, ...string[]];
@@ -113,6 +116,16 @@ export function deliver(role: Role, command: string[], env: Environ, home: strin
       return { harness, command: [bin, ...agentvoiceArguments(role, native)] };
     case "fx":
       return { harness, command: [bin, ...fxArguments(role, native)] };
+    case "opencode": {
+      const config = opencodeConfig(role);
+      const configPath =
+        config === null ? null : renderOpencodeConfig(role, cacheHome(env, home), config);
+      return {
+        harness,
+        command: [bin, ...opencodeArguments(native)],
+        env: opencodeEnv(configPath),
+      };
+    }
   }
 }
 
@@ -139,14 +152,21 @@ function describe(role: Role, env: Environ, home: string): string {
   for (const harness of HARNESSES) {
     try {
       const delivery = deliver(role, [harness], env, home);
-      lines.push(
-        `  ${harness}: ${delivery.command.slice(1).map(shellWord).join(" ") || "(no arguments)"}`,
-      );
+      lines.push(`  ${harness}: ${describeDelivery(delivery)}`);
     } catch (error) {
       lines.push(`  ${harness}: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
   return lines.join("\n");
+}
+
+function describeDelivery(delivery: Delivery): string {
+  const parts: string[] = [];
+  for (const [key, value] of Object.entries(delivery.env ?? {})) {
+    if (value !== undefined) parts.push(`${key}=${shellWord(value)}`);
+  }
+  parts.push(...delivery.command.slice(1).map(shellWord));
+  return parts.join(" ") || "(no arguments)";
 }
 
 function shellWord(token: string): string {
@@ -196,7 +216,7 @@ export async function main(argv: string[], env: Environ = process.env): Promise<
       case "run": {
         const role = load(command.role!, env, home);
         const delivery = deliver(role, command.command!, env, home);
-        return await runHarness(role, delivery.command, env);
+        return await runHarness(role, delivery.command, env, delivery.env ?? {});
       }
     }
   } catch (error) {

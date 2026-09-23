@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { RoleError } from "../src/errors.ts";
-import { parseMcpServers, toCodexMcpServers } from "../src/mcp.ts";
+import { parseMcpServers, toCodexMcpServers, toOpencodeMcpServers } from "../src/mcp.ts";
 
 describe("mcp.json", () => {
   test("parses the .mcp.json shape and translates Claude-only keys for Codex", () => {
@@ -32,6 +32,49 @@ describe("mcp.json", () => {
     );
     expect(() => toCodexMcpServers({ x: { url: "u", headers: "h" } }, "mcp.json")).toThrow(
       "headers must be an object",
+    );
+  });
+
+  test("translates Claude-shaped servers into OpenCode local/remote entries", () => {
+    const servers = parseMcpServers(
+      JSON.stringify({
+        mcpServers: {
+          papers: {
+            type: "stdio",
+            command: "uvx",
+            args: ["papers-mcp"],
+            env: { A: "1" },
+            cwd: "/tmp",
+            disabled: true,
+            timeout: 8000,
+          },
+          docs: { type: "http", url: "https://example.test/mcp", headers: { "X-Key": "k" } },
+          events: { type: "sse", url: "https://example.test/sse" },
+        },
+      }),
+      "mcp.json",
+    );
+    expect(toOpencodeMcpServers(servers, "mcp.json")).toEqual({
+      papers: {
+        type: "local",
+        command: ["uvx", "papers-mcp"],
+        environment: { A: "1" },
+        cwd: "/tmp",
+        enabled: false,
+        timeout: 8000,
+      },
+      docs: {
+        type: "remote",
+        url: "https://example.test/mcp",
+        headers: { "X-Key": "k" },
+      },
+      events: { type: "remote", url: "https://example.test/sse" },
+    });
+    expect(() => toOpencodeMcpServers({ x: { type: "websocket", url: "u" } }, "mcp.json")).toThrow(
+      "not supported by OpenCode",
+    );
+    expect(() => toOpencodeMcpServers({ x: { command: "c", args: "nope" } }, "mcp.json")).toThrow(
+      "args must be an array of strings",
     );
   });
 });

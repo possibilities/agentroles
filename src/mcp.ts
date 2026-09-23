@@ -36,6 +36,101 @@ export function parseMcpServers(text: string, source: string): McpServers {
   return servers;
 }
 
+function stringArray(value: unknown): value is string[] {
+  return Array.isArray(value) && value.every((entry) => typeof entry === "string");
+}
+
+function stringRecord(value: unknown): value is Record<string, string> {
+  return record(value) && Object.values(value).every((entry) => typeof entry === "string");
+}
+
+/**
+ * OpenCode-shaped entries: `type` is required (`local` or `remote`), `command`
+ * is an argv array, Claude `env` becomes `environment`. SSE URLs travel as
+ * `remote` (OpenCode has no separate SSE transport).
+ */
+export function toOpencodeMcpServers(servers: McpServers, source: string): McpServers {
+  const out: McpServers = {};
+  for (const [name, entry] of Object.entries(servers)) {
+    const type = entry["type"];
+    const hasCommand = typeof entry["command"] === "string";
+    const hasUrl = typeof entry["url"] === "string";
+    const local = type === "local" || type === "stdio" || (type === undefined && hasCommand);
+    const remote =
+      type === "remote" || type === "http" || type === "sse" || (type === undefined && hasUrl);
+    if (local === remote)
+      throw new RoleError(
+        `${source}: mcpServers.${name}.type "${String(type)}" is not supported by OpenCode (stdio/local or http/sse/remote)`,
+      );
+    if (local) {
+      const command = entry["command"];
+      if (typeof command !== "string")
+        throw new RoleError(`${source}: mcpServers.${name} needs a string command`);
+      const args = entry["args"];
+      if (args !== undefined && !stringArray(args))
+        throw new RoleError(`${source}: mcpServers.${name}.args must be an array of strings`);
+      const environment = entry["env"];
+      if (environment !== undefined && !stringRecord(environment))
+        throw new RoleError(`${source}: mcpServers.${name}.env must be an object of strings`);
+      const cwd = entry["cwd"];
+      if (cwd !== undefined && typeof cwd !== "string")
+        throw new RoleError(`${source}: mcpServers.${name}.cwd must be a string`);
+      const server: Record<string, unknown> = {
+        type: "local",
+        command: [command, ...(args ?? [])],
+      };
+      if (environment !== undefined) server["environment"] = environment;
+      if (cwd !== undefined) server["cwd"] = cwd;
+      assignEnablement(server, entry, `${source}: mcpServers.${name}`);
+      assignTimeout(server, entry, `${source}: mcpServers.${name}`);
+      out[name] = server;
+      continue;
+    }
+    const headers = entry["headers"];
+    if (headers !== undefined && !stringRecord(headers))
+      throw new RoleError(`${source}: mcpServers.${name}.headers must be an object of strings`);
+    const server: Record<string, unknown> = { type: "remote", url: entry["url"] };
+    if (headers !== undefined) server["headers"] = headers;
+    assignEnablement(server, entry, `${source}: mcpServers.${name}`);
+    assignTimeout(server, entry, `${source}: mcpServers.${name}`);
+    out[name] = server;
+  }
+  return out;
+}
+
+function assignEnablement(
+  server: Record<string, unknown>,
+  entry: Record<string, unknown>,
+  source: string,
+): void {
+  if (entry["enabled"] !== undefined) {
+    if (typeof entry["enabled"] !== "boolean")
+      throw new RoleError(`${source}.enabled must be a boolean`);
+    server["enabled"] = entry["enabled"];
+    return;
+  }
+  if (entry["disabled"] !== undefined) {
+    if (typeof entry["disabled"] !== "boolean")
+      throw new RoleError(`${source}.disabled must be a boolean`);
+    server["enabled"] = !entry["disabled"];
+  }
+}
+
+function assignTimeout(
+  server: Record<string, unknown>,
+  entry: Record<string, unknown>,
+  source: string,
+): void {
+  if (entry["timeout"] === undefined) return;
+  if (
+    typeof entry["timeout"] !== "number" ||
+    !Number.isInteger(entry["timeout"]) ||
+    entry["timeout"] < 1
+  )
+    throw new RoleError(`${source}.timeout must be a positive integer`);
+  server["timeout"] = entry["timeout"];
+}
+
 /** Codex-shaped entries: `type` dropped (sse rejected), `headers` becomes `http_headers`. */
 export function toCodexMcpServers(servers: McpServers, source: string): McpServers {
   const out: McpServers = {};

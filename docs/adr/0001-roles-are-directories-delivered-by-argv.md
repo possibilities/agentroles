@@ -11,7 +11,7 @@ command-line arguments and running the harness through PATH. This keeps roles
 independent of identity, session history and global configuration, lets fleet
 shims keep their policy, and makes the format usable by hand without the tool.
 `mcp.json` uses Claude Code's `.mcp.json` shape because it is the most widely
-shared MCP file format; Codex receives a translation.
+shared MCP file format; Codex and OpenCode receive a translation.
 
 Codex CLI has no per-process skill root, so its skills route is a plugin that
 `agentroles install` installs through Codex's plugin CLI and persists disabled
@@ -23,4 +23,6 @@ reads the directory natively (`--role`) because only its process can call
 flags (`--system-prompt-file` / `--append-system-prompt-file`, `--mcp-config`,
 and `--skills-dir` plus `--no-default-skills` when the role has `skills/`)
 because those controls already exist on the process; it has no AgentLaunch
-overlay, so no resource marker is sent.
+overlay, so no resource marker is sent. OpenCode has no such argv; it is
+delivered through `OPENCODE_CONFIG` as described in
+[ADR 0004](0004-opencode-is-delivered-through-opencode-config.md).
