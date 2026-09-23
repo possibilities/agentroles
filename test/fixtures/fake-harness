@@ -2,7 +2,7 @@
 # Records how it was invoked, then exits with $FAKE_HARNESS_EXIT (default 0).
 printf '%s\n' "$(basename "$0")" > "$FAKE_HARNESS_LOG"
 printf '%s\n' "$@" >> "$FAKE_HARNESS_LOG"
-printf 'AGENTROLES_ROLE=%s\nAGENTROLES_NAME=%s\nAGENTLAUNCH_ROLE_RESOURCES=%s\nOPENCODE_CONFIG=%s\n' \
-  "${AGENTROLES_ROLE:-}" "${AGENTROLES_NAME:-}" "${AGENTLAUNCH_ROLE_RESOURCES:-}" \
+printf 'AGENTROLES_ROLE=%s\nAGENTROLES_NAME=%s\nOPENCODE_CONFIG=%s\n' \
+  "${AGENTROLES_ROLE:-}" "${AGENTROLES_NAME:-}" \
   "${OPENCODE_CONFIG:-}" >> "$FAKE_HARNESS_LOG"
 exit "${FAKE_HARNESS_EXIT:-0}"

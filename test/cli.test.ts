@@ -90,7 +90,6 @@ describe("main", () => {
       ]);
       expect(log).toContain(`AGENTROLES_ROLE=${dir}`);
       expect(log).toContain("AGENTROLES_NAME=r");
-      expect(log).toContain("AGENTLAUNCH_ROLE_RESOURCES=agentroles-v1");
       expect(existsSync(join(pluginDir, ".claude-plugin", "plugin.json"))).toBe(true);
       expect(existsSync(join(pluginDir, "skills", "one", "SKILL.md"))).toBe(true);
 
@@ -101,9 +100,6 @@ describe("main", () => {
         dir,
         "--allow-full-access",
       ]);
-      expect(readFileSync(s.env["FAKE_HARNESS_LOG"]!, "utf8").split("\n")).toContain(
-        "AGENTLAUNCH_ROLE_RESOURCES=",
-      );
 
       expect(await main(["r", "--", "fx"], s.env)).toBe(0);
       expect(readFileSync(s.env["FAKE_HARNESS_LOG"]!, "utf8").split("\n").slice(0, 8)).toEqual([
@@ -116,9 +112,6 @@ describe("main", () => {
         join(dir, "skills"),
         "--no-default-skills",
       ]);
-      expect(readFileSync(s.env["FAKE_HARNESS_LOG"]!, "utf8").split("\n")).toContain(
-        "AGENTLAUNCH_ROLE_RESOURCES=",
-      );
 
       expect(await main(["r", "--", "opencode", "run", "hi"], s.env)).toBe(0);
       const opencodeLog = readFileSync(s.env["FAKE_HARNESS_LOG"]!, "utf8").split("\n");
@@ -132,7 +125,6 @@ describe("main", () => {
       );
       expect(opencodeLog.slice(0, 3)).toEqual(["fake-harness", "run", "hi"]);
       expect(opencodeLog).toContain(`OPENCODE_CONFIG=${opencodeConfigPath}`);
-      expect(opencodeLog).toContain("AGENTLAUNCH_ROLE_RESOURCES=");
       expect(JSON.parse(readFileSync(opencodeConfigPath, "utf8"))).toEqual({
         $schema: "https://opencode.ai/config.json",
         instructions: [join(dir, "APPEND_SYSTEM_PROMPT.md")],
@@ -158,16 +150,6 @@ describe("main", () => {
         "OPENCODE_CONFIG=",
       );
 
-      expect(
-        await main(["r", "--", "claude"], {
-          ...s.env,
-          AGENTLAUNCH_ROLE_RESOURCES: "stale-parent-value",
-        }),
-      ).toBe(0);
-      expect(readFileSync(s.env["FAKE_HARNESS_LOG"]!, "utf8")).toContain(
-        "AGENTLAUNCH_ROLE_RESOURCES=agentroles-v1",
-      );
-
       const codexRole = s.role("codex-role", {
         "mcp.json": JSON.stringify({ mcpServers: { srv: { command: "srv" } } }),
       });
@@ -180,7 +162,6 @@ describe("main", () => {
       const codexEnv = readFileSync(s.env["FAKE_HARNESS_LOG"]!, "utf8").split("\n");
       expect(codexEnv).toContain(`AGENTROLES_ROLE=${codexRole}`);
       expect(codexEnv).toContain("AGENTROLES_NAME=codex-role");
-      expect(codexEnv).toContain("AGENTLAUNCH_ROLE_RESOURCES=agentroles-v1");
 
       expect(await main(["r", "--", "claude"], { ...s.env, FAKE_HARNESS_EXIT: "7" })).toBe(7);
       expect(await main(["r", "--", "python"], s.env)).toBe(1);

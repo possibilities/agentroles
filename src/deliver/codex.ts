@@ -11,8 +11,7 @@ export function codexPluginId(role: Role): string {
 }
 
 /**
- * AgentLaunch owns `skills.config` for ordinary fleet launches and omits it
- * for explicit roles. A role selects only its own globally inert plugin.
+ * A role selects its own globally inert plugin for this invocation.
  */
 export function codexOverrides(role: Role, pluginInstalled: boolean): string[] {
   const overrides: string[] = [];
@@ -62,7 +61,7 @@ const GLOBAL_VALUE_FLAGS = new Set([
 ]);
 const ATTACHED_VALUE_FLAGS = ["-c", "-i", "-m", "-p", "-s", "-C", "-a"];
 
-/** Index of `exec`/`review` after leading global options, else null (mirrors AgentLaunch). */
+/** Index of `exec`/`review` after leading global options, else null. */
 export function codexCommandIndex(tokens: readonly string[]): number | null {
   for (let index = 0; index < tokens.length; index += 1) {
     const token = tokens[index]!;

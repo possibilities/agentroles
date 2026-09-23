@@ -64,21 +64,13 @@ both a `skills.paths` root and `command` entries: the TUI slash menu hides
 skill-sourced commands, so `/collab` comes from `command.collab`. User tokens
 are unchanged; `--agent plan` still selects `plan`, whose prompt is not replaced.
 
-The harness is found on `PATH`, so the AgentLaunch shims still apply their
-account, model, effort, and yolo policy. For direct Claude and Codex launches,
-the explicit role is the complete skill/MCP layer: AgentLaunch keeps these
-native role arguments and does not add its fixed Claude plugin, Codex skill
-enables, or MCP definitions. Omitting a skill or server from the role makes it
-unavailable for that invocation. Codex options go after `exec`/`review` or `resume <id>`
-and before anything else, mirroring AgentLaunch. Fx flags go before the user's
-tokens, like Claude's. The child also receives
+The harness is found on `PATH`, so installed permission shims still apply.
+For direct Claude and Codex launches, the role supplies its skill and MCP
+arguments; an omitted role resource is not added by AgentRoles. Codex options
+go after `exec`/`review` or `resume <id>` and before other arguments. Fx flags
+go before the user's tokens, like Claude's. The child also receives
 `AGENTROLES_ROLE=<dir>` and `AGENTROLES_NAME=<name>` in its environment, and
-its exit code is agentroles' exit code. AgentRoles sends a private one-shot
-resource marker to the immediate AgentLaunch shim; AgentLaunch consumes it
-before starting the native child, so nested harness launches receive their
-ordinary fleet defaults. AgentVoice receives no marker because it reads
-`--role <dir>` itself. Fx and OpenCode receive no marker because they are not
-launched through AgentLaunch.
+its exit code is agentroles' exit code.
 
 ## Codex skills need one install
 

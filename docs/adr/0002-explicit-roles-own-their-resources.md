@@ -1,5 +1,11 @@
 # 0002: Explicit roles own their resources
 
+The AgentLaunch marker transport below was retired September 23, 2026.
+AgentStart's bare shims now add permission defaults but no role resources;
+AgentRoles delivers native role arguments directly through PATH. The inert
+Codex plugin and per-invocation role boundaries remain unchanged. The original
+transport reasoning is preserved below as history.
+
 Accepted September 14, 2026.
 
 For direct Claude and Codex delivery, an AgentRoles directory is the complete

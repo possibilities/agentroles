@@ -2,10 +2,6 @@ import { RoleError } from "./errors.ts";
 import type { Environ } from "./paths.ts";
 import type { Role } from "./role.ts";
 
-/** Private one-shot contract consumed by the immediate AgentLaunch shim. */
-export const AGENTLAUNCH_ROLE_RESOURCES = "AGENTLAUNCH_ROLE_RESOURCES";
-export const AGENTLAUNCH_ROLE_RESOURCES_VERSION = "agentroles-v1";
-
 const SIGNAL_EXIT: Record<string, number> = {
   SIGHUP: 129,
   SIGINT: 130,
@@ -22,8 +18,8 @@ export function resolveBinary(name: string, env: Environ): string {
 }
 
 /**
- * Runs the harness through PATH so AgentLaunch's shim still applies its fleet
- * policy. The role is also named in the environment for skills that need it.
+ * Runs the harness through PATH so installed permission defaults apply.
+ * The role is also named in the environment for skills that need it.
  */
 export async function runHarness(
   role: Role,
@@ -33,7 +29,6 @@ export async function runHarness(
 ): Promise<number> {
   const [bin, ...rest] = command;
   if (bin === undefined) throw new RoleError("no harness command given after --");
-  const harness = bin.split("/").at(-1);
   const childEnv: Environ = {
     ...env,
     AGENTROLES_ROLE: role.dir,
@@ -43,9 +38,6 @@ export async function runHarness(
     if (value === undefined) delete childEnv[key];
     else childEnv[key] = value;
   }
-  if (harness === "claude" || harness === "codex")
-    childEnv[AGENTLAUNCH_ROLE_RESOURCES] = AGENTLAUNCH_ROLE_RESOURCES_VERSION;
-  else delete childEnv[AGENTLAUNCH_ROLE_RESOURCES];
   const child = Bun.spawn([resolveBinary(bin, env), ...rest], {
     stdin: "inherit",
     stdout: "inherit",

@@ -26,8 +26,8 @@ accounts, workspaces or harness configuration beyond the four capabilities.
 - `src/role.ts`: role resolution and loading; every validation a harness would
   otherwise discover late (exclusive prompt files, skill layout, mcp.json shape).
 - `src/deliver/{claude,codex,agentvoice,fx,opencode}.ts`: pure argv or env
-  rendering. Codex placement mirrors AgentLaunch (after `exec`/`review`, after
-  `resume <id>`). Fx flags go before the user's tokens, like Claude. OpenCode
+  rendering. Codex overrides follow `exec`/`review` and
+  `resume <id>`. Fx flags go before the user's tokens, like Claude. OpenCode
   has no role argv; it sets `OPENCODE_CONFIG` to a cache-rendered JSON.
 - `src/mcp.ts`, `src/toml.ts`: `.mcp.json` parsing and the Codex/OpenCode
   translations; TOML rendering that Codex's `-c` parser accepts verbatim.
@@ -47,16 +47,11 @@ accounts, workspaces or harness configuration beyond the four capabilities.
   Codex state, only through Codex tooling, and only to install a plugin that
   stays disabled globally. Only `install --devin` changes Devin state, only
   through Devin's plugin CLI, and that plugin stays enabled for every session.
-- Never set `skills.config` for Codex. AgentLaunch owns that key for ordinary
-  fleet launches; an explicit role omits it and selects only its inert role
-  plugin. Plugin-level enablement is the per-process role mechanism.
+- Never set `skills.config` for Codex. An explicit role selects only its inert
+  role plugin. Plugin-level enablement is the per-process role mechanism.
 - The harness runs through PATH so fleet shims keep their policy; do not
   bypass them.
-- Direct Claude/Codex delivery marks this role as the complete skill/MCP layer
-  for the immediate AgentLaunch shim. AgentLaunch consumes the private marker
-  before the native child starts, while `AGENTROLES_ROLE` and
-  `AGENTROLES_NAME` remain available to role-aware skills. AgentVoice, Fx and
-  OpenCode receive no marker.
+- `AGENTROLES_ROLE` and `AGENTROLES_NAME` remain available to role-aware skills.
 - Role and MCP server names stay within `[A-Za-z0-9][A-Za-z0-9_-]*`; they are
   unquoted Codex key segments and plugin ids.
 
