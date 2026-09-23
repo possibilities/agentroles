@@ -49,7 +49,7 @@ the role-name rule; each server has exactly one of `command` or `url`.
 | `SYSTEM_PROMPT.md` | `--system-prompt-file` | `-c model_instructions_file=<path>` | `baseInstructions` on the working thread | `--system-prompt-file` | `agent.build.prompt` in a rendered `OPENCODE_CONFIG` JSON (the default primary agent) |
 | `APPEND_SYSTEM_PROMPT.md` | `--append-system-prompt-file` | `-c developer_instructions="<text>"` (Codex's developer message after its base prompt) | `developerInstructions` on the working thread | `--append-system-prompt-file` | `instructions: [<path>]` in that JSON |
 | `mcp.json` | `--mcp-config <role>/mcp.json` | one `-c mcp_servers.<name>={...}` per server, `type` dropped and `headers` renamed `http_headers` (`sse` is rejected) | per-thread `mcp_servers` config | `--mcp-config <role>/mcp.json`; replaces `~/.fx/mcp.json` for that process (`mcpServers` is accepted as a profile alias) | `mcp` in that JSON: `command` becomes a `local` argv array, `url` becomes `remote`; `sse` is delivered as `remote` |
-| `skills/` | `--plugin-dir` on a plugin rendered under `~/.cache/agentroles/claude/<name>/` on every launch; skills appear as `/<name>:<skill>` | `-c plugins.<name>@agentroles.enabled=true` on a plugin installed once by `agentroles install`; skills appear as `$<name>:<skill>` | `skills/extraRoots/set` on the Codex child AgentVoice owns; skills appear under their own names | `--skills-dir <role>/skills` and `--no-default-skills` when the role has `skills/`; skills appear under their own names | `skills.paths: [<role>/skills]`; global, project and external OpenCode skills still load |
+| `skills/` | `--plugin-dir` on a plugin rendered under `~/.cache/agentroles/claude/<name>/` on every launch; skills appear as `/<name>:<skill>` | `-c plugins.<name>@agentroles.enabled=true` on a plugin installed once by `agentroles install`; skills appear as `$<name>:<skill>` | `skills/extraRoots/set` on the Codex child AgentVoice owns; skills appear under their own names | `--skills-dir <role>/skills` and `--no-default-skills` when the role has `skills/`; skills appear under their own names | `skills.paths: [<role>/skills]` plus `command.<name>` from each `SKILL.md` so `/<name>` appears in the TUI slash menu; global, project and external OpenCode skills still load |
 | `VOICE_*` files | ignored | ignored | read natively | ignored | ignored |
 
 AgentVoice receives only `--role <dir>` and reads the directory itself, since
@@ -59,7 +59,9 @@ README section "Roles" for the voice-side rules.
 OpenCode has no argv for prompts, skills or MCP. Delivery is
 `OPENCODE_CONFIG` pointing at `~/.cache/agentroles/opencode/<name>/opencode.json`,
 regenerated on every launch. OpenCode merges that file with global and project
-config, so a project `opencode.json` can still override role keys. User tokens
+config, so a project `opencode.json` can still override role keys. Skills are
+both a `skills.paths` root and `command` entries: the TUI slash menu hides
+skill-sourced commands, so `/collab` comes from `command.collab`. User tokens
 are unchanged; `--agent plan` still selects `plan`, whose prompt is not replaced.
 
 The harness is found on `PATH`, so the AgentLaunch shims still apply their
@@ -166,7 +168,7 @@ reason and, where one exists, the fix.
   in place and need no install. OpenCode still also loads global, project and
   `~/.claude`/`~/.agents` skills; there is no exclusive skill-root flag.
   `OPENCODE_CONFIG` is merged before project config, so a project
-  `opencode.json` can override the role.
+  `opencode.json` can override the role, including a same-name `command`.
 - Harness configuration beyond these four capabilities (models, permissions,
   extra flags) is not part of a role yet.
 

@@ -137,6 +137,17 @@ describe("main", () => {
         $schema: "https://opencode.ai/config.json",
         instructions: [join(dir, "APPEND_SYSTEM_PROMPT.md")],
         skills: { paths: [join(dir, "skills")] },
+        command: {
+          one: {
+            template: [
+              "Do the thing.",
+              "",
+              `Base directory for this skill: ${join(dir, "skills", "one")}`,
+              "Relative paths in this skill (e.g., scripts/, references/) are relative to this base directory.",
+            ].join("\n"),
+            description: "A test skill.",
+          },
+        },
         mcp: { srv: { type: "local", command: ["srv"] } },
       });
       s.role("empty-role");

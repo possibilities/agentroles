@@ -63,6 +63,17 @@ describe("deliveries", () => {
         $schema: "https://opencode.ai/config.json",
         instructions: [join(dir, "APPEND_SYSTEM_PROMPT.md")],
         skills: { paths: [join(dir, "skills")] },
+        command: {
+          one: {
+            template: [
+              "Do the thing.",
+              "",
+              `Base directory for this skill: ${join(dir, "skills", "one")}`,
+              "Relative paths in this skill (e.g., scripts/, references/) are relative to this base directory.",
+            ].join("\n"),
+            description: "A test skill.",
+          },
+        },
         mcp: { srv: { type: "local", command: ["srv"] } },
       });
       expect(opencodeConfig(replace)).toEqual({
@@ -70,6 +81,19 @@ describe("deliveries", () => {
         agent: { build: { prompt: "x" } },
       });
       expect(opencodeConfig(loadRole(s.role("empty")))).toBeNull();
+      const quoted = loadRole(
+        s.role("quoted", {
+          "skills/collab/SKILL.md":
+            '---\nname: collab\ndescription: "Work with the human."\n---\nStay in conversation.\n',
+          "skills/bare/SKILL.md": "Just the body.\n",
+        }),
+      );
+      const commands = opencodeConfig(quoted)?.["command"] as Record<
+        string,
+        { description?: string }
+      >;
+      expect(commands["collab"]?.description).toBe("Work with the human.");
+      expect(commands["bare"]?.description).toBeUndefined();
     } finally {
       s.cleanup();
     }

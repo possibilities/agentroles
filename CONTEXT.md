@@ -18,8 +18,9 @@ complete skill/MCP layer; omissions remain absent when the AgentLaunch shim
 applies its separate account, model, effort, and yolo policy. Fx receives the
 same native prompt and MCP flags as Claude, plus `--skills-dir` and
 `--no-default-skills` when the role has `skills/`. OpenCode receives a
-cache-rendered `opencode.json` via `OPENCODE_CONFIG`; neither Fx nor OpenCode
-is launched through AgentLaunch. _Avoid_: injection, mangling.
+cache-rendered `opencode.json` via `OPENCODE_CONFIG` (`skills.paths` plus
+`command.<name>` for each skill so `/name` appears in the TUI); neither Fx nor
+OpenCode is launched through AgentLaunch. _Avoid_: injection, mangling.
 
 **Roles home** — `$AGENTROLES_HOME`, default `~/.config/agentroles`, where
 named roles live. _Avoid_: registry, catalog.

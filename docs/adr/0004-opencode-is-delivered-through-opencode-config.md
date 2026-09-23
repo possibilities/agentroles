@@ -17,7 +17,11 @@ File mapping:
 
 - `SYSTEM_PROMPT.md` → `agent.build.prompt` (OpenCode's default primary agent)
 - `APPEND_SYSTEM_PROMPT.md` → `instructions: [<absolute path>]`
-- `skills/` → `skills.paths: [<absolute skills root>]`, left in place
+- `skills/` → `skills.paths: [<absolute skills root>]`, left in place, and each
+  `SKILL.md` as `command.<name>` (`template` is the markdown body plus the skill
+  directory, `description` from frontmatter). OpenCode also registers skills as
+  commands internally, but the TUI slash menu skips `source === "skill"`, so
+  `/collab` only appears when it is a native `command` entry.
 - `mcp.json` → `mcp`: `command` becomes `{type:"local", command:[cmd,...args]}`,
   `url` becomes `{type:"remote", url}`; `sse` is delivered as `remote`
 
@@ -26,4 +30,5 @@ No `agentroles install` path: skills are not copied into OpenCode state.
 
 Limits that follow from OpenCode itself: project `opencode.json` can override
 role keys; global/project/external skills still load; replacing `build.prompt`
-does not change `plan` or `explore`.
+does not change `plan` or `explore`. A project `command` of the same name
+overrides the role skill's slash entry.
