@@ -11,10 +11,11 @@ import { claudeArguments } from "./deliver/claude.ts";
 import { codexArguments, codexOverrides, codexPluginId } from "./deliver/codex.ts";
 import { fxArguments } from "./deliver/fx.ts";
 import { opencodeArguments, opencodeConfig, opencodeEnv } from "./deliver/opencode.ts";
+import { devinPluginRendered, installDevinPlugin } from "./devin-plugin.ts";
 import { RoleError, UsageError } from "./errors.ts";
 import { runHarness } from "./exec.ts";
 import { cacheHome, type Environ, rolesHome } from "./paths.ts";
-import { renderClaudePlugin, renderOpencodeConfig } from "./render.ts";
+import { devinPluginDir, renderClaudePlugin, renderOpencodeConfig } from "./render.ts";
 import { listRoles, loadRole, type Role, resolveRolePath } from "./role.ts";
 
 export const VERSION = "0.1.0";
@@ -33,6 +34,7 @@ Usage:
   agentroles show <role>
   agentroles install <role>        install the role's skills as a disabled Codex plugin
   agentroles install --check <role> compare the role's skills with Codex's installed copy (JSON)
+  agentroles install --devin <role> install the role as a sticky Devin plugin for every session
   agentroles --help | --version
 
 <role> is a name under $AGENTROLES_HOME (default ~/.config/agentroles) or a
@@ -47,7 +49,15 @@ returned unchanged. For install --check, 0 means fresh and 1 means absent or sta
 `;
 
 export interface Command {
-  kind: "run" | "list" | "show" | "install" | "install-check" | "help" | "version";
+  kind:
+    | "run"
+    | "list"
+    | "show"
+    | "install"
+    | "install-check"
+    | "install-devin"
+    | "help"
+    | "version";
   role?: string;
   command?: string[];
 }
@@ -65,6 +75,12 @@ export function parseCommand(argv: string[]): Command {
     if (role === undefined || extra.length > 0)
       throw new UsageError("install --check takes exactly one role");
     return { kind: "install-check", role };
+  }
+  if (first === "install" && rest[0] === "--devin") {
+    const [role, ...extra] = rest.slice(1);
+    if (role === undefined || extra.length > 0)
+      throw new UsageError("install --devin takes exactly one role");
+    return { kind: "install-devin", role };
   }
   if (first === "show" || first === "install") {
     const [role, ...extra] = rest;
@@ -149,6 +165,13 @@ function describe(role: Role, env: Environ, home: string): string {
         codexPluginInstalled(role, env, home) ? "installed" : "not installed (agentroles install)"
       }`,
     );
+  lines.push(
+    `  devin plugin: ${
+      devinPluginRendered(role, env, home)
+        ? `${devinPluginDir(role, cacheHome(env, home))} (sticky)`
+        : "not installed (agentroles install --devin)"
+    }`,
+  );
   for (const harness of HARNESSES) {
     try {
       const delivery = deliver(role, [harness], env, home);
@@ -205,6 +228,11 @@ export async function main(argv: string[], env: Environ = process.env): Promise<
         return 0;
       case "install":
         await installCodexPlugin(load(command.role!, env, home), env, home, (line) =>
+          console.error(`agentroles: ${line}`),
+        );
+        return 0;
+      case "install-devin":
+        installDevinPlugin(load(command.role!, env, home), env, home, (line) =>
           console.error(`agentroles: ${line}`),
         );
         return 0;

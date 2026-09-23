@@ -16,6 +16,7 @@ export function sandbox() {
     ["fx", "fake-harness"],
     ["opencode", "fake-harness"],
     ["codex", "fake-codex"],
+    ["devin", "fake-devin"],
   ] as const) {
     writeFileSync(join(bin, name), `#!/usr/bin/env bash\nexec "${join(fixtures, source)}" "$@"\n`, {
       mode: 0o755,
@@ -29,6 +30,7 @@ export function sandbox() {
     CODEX_HOME: join(home, ".codex"),
     FAKE_HARNESS_LOG: join(home, "harness.log"),
     FAKE_CODEX_LOG: join(home, "codex.log"),
+    FAKE_DEVIN_LOG: join(home, "devin.log"),
   };
   const role = (name: string, files: Record<string, string> = {}) => {
     const dir = join(roles, name);

@@ -24,10 +24,12 @@ is launched through AgentLaunch. _Avoid_: injection, mangling.
 **Roles home** — `$AGENTROLES_HOME`, default `~/.config/agentroles`, where
 named roles live. _Avoid_: registry, catalog.
 
-**Install** — The one command that writes Codex state: rendering a role's
-skills as a plugin in the `agentroles` marketplace, installing it with
-Codex's plugin CLI, and persisting it disabled through Codex's config editor.
-Launches then enable it per process. _Avoid_: activate, register.
+**Install** — The command that writes harness plugin state. Bare
+`agentroles install` writes Codex state: a skills-only plugin in the
+`agentroles` marketplace, installed through Codex's plugin CLI and persisted
+disabled; launches enable it per process. `agentroles install --devin` writes
+Devin state: a rendered plugin installed with `devin plugins install --local`,
+enabled for every session on this machine. _Avoid_: activate, register.
 
 **Freshness check** — `agentroles install --check <role>`: a read-only,
 machine-readable comparison of the role's current skill tree with Codex's

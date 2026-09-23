@@ -3,8 +3,9 @@
  * are rendered into one under the cache on every launch: a manifest naming
  * the role plus a fresh copy of skills/. Regenerated, never edited in place.
  */
-import { cpSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { copyFileSync, cpSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { RoleError } from "./errors.ts";
 import type { Role } from "./role.ts";
 
 export function claudePluginManifest(role: Role): Record<string, unknown> {
@@ -112,6 +113,60 @@ export function renderCodexMarketplace(role: Role, cacheRoot: string): string {
     )}\n`,
   );
   return root;
+}
+
+/** Devin plugin ids: lowercase alphanumerics with single "-" or "." separators. */
+export const DEVIN_PLUGIN_NAME_PATTERN = /^[a-z0-9]+(?:[-.][a-z0-9]+)*$/;
+export const DEVIN_PLUGIN_VERSION = "0.0.0";
+
+export function devinPluginName(role: Role): string {
+  if (!DEVIN_PLUGIN_NAME_PATTERN.test(role.name))
+    throw new RoleError(
+      `role "${role.name}" is not a valid Devin plugin name`,
+      "Devin plugin names are lowercase letters, digits, and single '-' or '.' separators",
+    );
+  return role.name;
+}
+
+export function devinPluginDir(role: Role, cacheRoot: string): string {
+  return join(cacheRoot, "devin", devinPluginName(role));
+}
+
+export function devinPluginManifest(role: Role): Record<string, unknown> {
+  return {
+    name: devinPluginName(role),
+    version: DEVIN_PLUGIN_VERSION,
+    description: `agentroles role ${role.name} (${role.dir})`,
+    author: { name: "agentroles" },
+  };
+}
+
+/**
+ * Devin has no per-process plugin flag. A role becomes a plugin directory that
+ * `devin plugins install --local` links at user level. Regenerated, never edited
+ * in place.
+ */
+export function renderDevinPlugin(role: Role, cacheRoot: string): string {
+  const name = devinPluginName(role);
+  const prompt = role.systemPrompt ?? role.appendSystemPrompt;
+  const hasSkills = role.skillsRoot !== undefined && role.skillNames.length > 0;
+  const hasMcp = role.mcpPath !== undefined;
+  if (prompt === undefined && !hasSkills && !hasMcp)
+    throw new RoleError(
+      `role ${role.name} has no prompt, skills/ or mcp.json; nothing to install for Devin`,
+    );
+  const target = join(cacheRoot, "devin", name);
+  rmSync(target, { recursive: true, force: true });
+  mkdirSync(join(target, ".devin-plugin"), { recursive: true });
+  writeFileSync(
+    join(target, ".devin-plugin", "plugin.json"),
+    `${JSON.stringify(devinPluginManifest(role), null, 2)}\n`,
+  );
+  if (prompt !== undefined) writeFileSync(join(target, "AGENTS.md"), readFileSync(prompt));
+  if (hasSkills && role.skillsRoot !== undefined)
+    cpSync(role.skillsRoot, join(target, "skills"), { recursive: true, dereference: true });
+  if (hasMcp && role.mcpPath !== undefined) copyFileSync(role.mcpPath, join(target, ".mcp.json"));
+  return target;
 }
 
 function readMarketplace(path: string): Record<string, unknown>[] {

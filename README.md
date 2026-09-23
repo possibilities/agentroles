@@ -117,6 +117,23 @@ absent or stale copy exits 1. The check does not run Codex, render the
 marketplace, or read or write Codex configuration. Roles without skills have
 nothing to install or check.
 
+## Devin plugins are sticky
+
+Devin CLI has no per-invocation prompt, skill, MCP or plugin flag, so a role
+cannot be delivered to one `devin` process. `agentroles install --devin <role>`
+instead installs a Devin plugin for every session on this machine:
+
+1. renders `~/.cache/agentroles/devin/<name>/` with `.devin-plugin/plugin.json`,
+   `AGENTS.md` from `SYSTEM_PROMPT.md` or `APPEND_SYSTEM_PROMPT.md`, a copy of
+   `skills/`, and `mcp.json` as `.mcp.json`;
+2. runs `devin plugins remove --local <name>` (absent is fine) then
+   `devin plugins install --local --yes <dir>`.
+
+That write uses only Devin's plugin CLI and requires `devin auth login`. The
+plugin stays enabled until `devin plugins remove`. Re-run after editing the
+role. `AGENTS.md` is always-on context; it does not replace Devin's base prompt.
+There is no `agentroles <role> -- devin`.
+
 ## Commands
 
 ```
@@ -125,6 +142,7 @@ agentroles list                  roles under the roles home
 agentroles show <role>           files, skills, servers and each harness's arguments
 agentroles install <role>        Codex plugin install, as above
 agentroles install --check <role> JSON freshness check for the installed Codex plugin
+agentroles install --devin <role> sticky Devin plugin install, as above
 agentroles --help | --version
 ```
 
@@ -142,17 +160,20 @@ reason and, where one exists, the fix.
 - `APPEND_SYSTEM_PROMPT.md` travels inside Codex's argv, which suits prompts,
   not large documents.
 - Claude Code loads the rendered plugin for that session only. Codex keeps its
-  installed copy until the next `agentroles install`. Fx and OpenCode read the
-  role's `skills/` in place and need no install. OpenCode still also loads
-  global, project and `~/.claude`/`~/.agents` skills; there is no exclusive
-  skill-root flag. `OPENCODE_CONFIG` is merged before project config, so a
-  project `opencode.json` can override the role.
+  installed copy until the next `agentroles install`. Devin keeps a sticky
+  user-level plugin until `devin plugins remove`; project `.devin/skills` and
+  other installed plugins still load. Fx and OpenCode read the role's `skills/`
+  in place and need no install. OpenCode still also loads global, project and
+  `~/.claude`/`~/.agents` skills; there is no exclusive skill-root flag.
+  `OPENCODE_CONFIG` is merged before project config, so a project
+  `opencode.json` can override the role.
 - Harness configuration beyond these four capabilities (models, permissions,
   extra flags) is not part of a role yet.
 
 ## Development
 
 `bun run check` runs lint, typecheck and the tests; tests use fake harnesses on
-a temporary `PATH` and never touch `~/.codex`, `~/.claude` or the real roles
-home. `scripts/install.sh --install` links `~/.local/bin/agentroles` to this
-checkout the way the other fleet CLIs are installed.
+a temporary `PATH` and never touch `~/.codex`, `~/.claude`, `~/.local/share/devin`
+or the real roles home. `scripts/install.sh --install` links
+`~/.local/bin/agentroles` to this checkout the way the other fleet CLIs are
+installed.

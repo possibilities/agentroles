@@ -25,4 +25,6 @@ and `--skills-dir` plus `--no-default-skills` when the role has `skills/`)
 because those controls already exist on the process; it has no AgentLaunch
 overlay, so no resource marker is sent. OpenCode has no such argv; it is
 delivered through `OPENCODE_CONFIG` as described in
-[ADR 0004](0004-opencode-is-delivered-through-opencode-config.md).
+[ADR 0004](0004-opencode-is-delivered-through-opencode-config.md). Devin CLI has
+no per-process role control; a role reaches it only as a sticky user plugin
+([ADR 0005](0005-devin-plugins-are-sticky-user-installs.md)).

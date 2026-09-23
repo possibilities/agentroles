@@ -15,7 +15,7 @@ accounts, workspaces or harness configuration beyond the four capabilities.
 
 - `bun run check` — lint, typecheck, tests. Tests use fake harnesses on a
   temporary PATH and disposable HOME/CODEX_HOME; never run them against real
-  state, and never add a test that needs a real `codex` or `claude`.
+  state, and never add a test that needs a real `codex`, `claude` or `devin`.
 - `bun run format` — Biome fixes.
 - `scripts/install.sh --install|--uninstall` — link the command into
   ~/.local/bin, called by AgentStart's `install-agent-clis`.
@@ -31,10 +31,12 @@ accounts, workspaces or harness configuration beyond the four capabilities.
   has no role argv; it sets `OPENCODE_CONFIG` to a cache-rendered JSON.
 - `src/mcp.ts`, `src/toml.ts`: `.mcp.json` parsing and the Codex/OpenCode
   translations; TOML rendering that Codex's `-c` parser accepts verbatim.
-- `src/render.ts`: cache-rendered Claude plugin, Codex marketplace and OpenCode
-  config; always regenerated, never edited in place.
+- `src/render.ts`: cache-rendered Claude plugin, Codex marketplace, OpenCode
+  config and Devin plugin; always regenerated, never edited in place.
 - `src/codex-plugin.ts`, `src/app-server.ts`: `install` through Codex's own
   plugin CLI and config editor RPC; the only path that writes Codex state.
+- `src/devin-plugin.ts`: `install --devin` through Devin's plugin CLI; the only
+  path that writes Devin state. The plugin stays enabled for every session.
 - `src/exec.ts`: PATH resolution, signal forwarding, exit-code mapping.
 
 ## Invariants
@@ -43,7 +45,8 @@ accounts, workspaces or harness configuration beyond the four capabilities.
   agentroles-shaped overlays; if a harness lacks a control, say so in README.
 - Launching writes nothing outside `~/.cache/agentroles`. Only `install` changes
   Codex state, only through Codex tooling, and only to install a plugin that
-  stays disabled globally.
+  stays disabled globally. Only `install --devin` changes Devin state, only
+  through Devin's plugin CLI, and that plugin stays enabled for every session.
 - Never set `skills.config` for Codex. AgentLaunch owns that key for ordinary
   fleet launches; an explicit role omits it and selects only its inert role
   plugin. Plugin-level enablement is the per-process role mechanism.
@@ -62,5 +65,6 @@ accounts, workspaces or harness configuration beyond the four capabilities.
 This checkout is one of the agent* fleet under `~/code`. `skills/agentroles/`
 ships into AgentStart's fixed fleet resources through
 `~/code/agentstart/scripts/sync-skills`. Cross-tool calls (claude, codex,
-agentvoice, fx, opencode, and AgentVoice's `--role`) belong in
-`~/code/agentstart/skills/fleet/MAP.md`; keep it current with any change here.
+agentvoice, fx, opencode, `devin plugins install`, and AgentVoice's `--role`)
+belong in `~/code/agentstart/skills/fleet/MAP.md`; keep it current with any
+change here.

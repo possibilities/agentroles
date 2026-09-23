@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { agentvoiceArguments } from "../src/deliver/agentvoice.ts";
 import { claudeArguments } from "../src/deliver/claude.ts";
@@ -6,6 +7,8 @@ import { codexArguments, codexCommandIndex, codexOverrides } from "../src/delive
 import { fxArguments } from "../src/deliver/fx.ts";
 import { opencodeArguments, opencodeConfig } from "../src/deliver/opencode.ts";
 import { RoleError } from "../src/errors.ts";
+import { cacheHome } from "../src/paths.ts";
+import { renderDevinPlugin } from "../src/render.ts";
 import { loadRole } from "../src/role.ts";
 import { SKILL, sandbox } from "./fixtures/roles.ts";
 
@@ -131,5 +134,30 @@ describe("deliveries", () => {
     expect(codexArguments(o, ["resume"])).toEqual([...o, "resume"]);
     expect(codexCommandIndex(["--", "exec"])).toBeNull();
     expect(codexCommandIndex(["-cfoo=bar", "review"])).toBe(1);
+  });
+
+  test("devin: plugin directory with AGENTS.md, skills and .mcp.json", () => {
+    const s = sandbox();
+    try {
+      const dir = s.role("r", {
+        "SYSTEM_PROMPT.md": "sys\n",
+        "mcp.json": JSON.stringify({ mcpServers: { srv: { command: "srv" } } }),
+        "skills/one/SKILL.md": SKILL,
+      });
+      const role = loadRole(dir);
+      const pluginDir = renderDevinPlugin(role, cacheHome(s.env, s.home));
+      expect(pluginDir).toBe(join(s.home, ".cache", "agentroles", "devin", "r"));
+      expect(readFileSync(join(pluginDir, "AGENTS.md"), "utf8")).toBe("sys\n");
+      expect(existsSync(join(pluginDir, "skills", "one", "SKILL.md"))).toBe(true);
+      expect(existsSync(join(pluginDir, ".mcp.json"))).toBe(true);
+      expect(() =>
+        renderDevinPlugin(
+          loadRole(s.role("bad_name", { "SYSTEM_PROMPT.md": "x" })),
+          cacheHome(s.env, s.home),
+        ),
+      ).toThrow(RoleError);
+    } finally {
+      s.cleanup();
+    }
   });
 });

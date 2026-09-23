@@ -1,0 +1,18 @@
+#!/usr/bin/env bun
+// A stand-in Devin: records plugin commands. Never touches the real Devin home.
+import { appendFileSync } from "node:fs";
+const log = process.env["FAKE_DEVIN_LOG"]!;
+const args = process.argv.slice(2);
+appendFileSync(log, `${JSON.stringify(args)}\n`);
+if (args[0] === "plugins" && args[1] === "remove") {
+  process.exit(process.env["FAKE_DEVIN_REMOVE_EXIT"] ? 1 : 0);
+}
+if (args[0] === "plugins" && args[1] === "install") {
+  if (process.env["FAKE_DEVIN_INSTALL_FAIL"]) {
+    console.error(process.env["FAKE_DEVIN_INSTALL_FAIL"]);
+    process.exit(2);
+  }
+  process.exit(0);
+}
+console.error("unexpected devin invocation");
+process.exit(2);

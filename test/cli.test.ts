@@ -40,6 +40,10 @@ describe("command grammar", () => {
       kind: "install-check",
       role: "r",
     });
+    expect(parseCommand(["install", "--devin", "r"])).toEqual({
+      kind: "install-devin",
+      role: "r",
+    });
     expect(parseCommand(["r", "--", "claude", "-p", "x"])).toEqual({
       kind: "run",
       role: "r",
@@ -54,6 +58,8 @@ describe("command grammar", () => {
       ["show"],
       ["install", "--check"],
       ["install", "--check", "r", "extra"],
+      ["install", "--devin"],
+      ["install", "--devin", "r", "extra"],
     ])
       expect(() => parseCommand(argv)).toThrow(UsageError);
   });
@@ -265,6 +271,61 @@ describe("main", () => {
     }
   });
 
+  test("install --devin renders a plugin and installs it with Devin's CLI", async () => {
+    const s = sandbox();
+    const c = capture();
+    const devinLog = s.env["FAKE_DEVIN_LOG"]!;
+    try {
+      const dir = s.role("r", {
+        "APPEND_SYSTEM_PROMPT.md": "be the manager\n",
+        "mcp.json": JSON.stringify({ mcpServers: { srv: { command: "srv" } } }),
+        "skills/one/SKILL.md": SKILL,
+      });
+      expect(await main(["install", "--devin", "r"], s.env)).toBe(0);
+      const pluginDir = join(s.home, ".cache", "agentroles", "devin", "r");
+      expect(
+        JSON.parse(readFileSync(join(pluginDir, ".devin-plugin", "plugin.json"), "utf8")),
+      ).toEqual({
+        name: "r",
+        version: "0.0.0",
+        description: `agentroles role r (${dir})`,
+        author: { name: "agentroles" },
+      });
+      expect(readFileSync(join(pluginDir, "AGENTS.md"), "utf8")).toBe("be the manager\n");
+      expect(JSON.parse(readFileSync(join(pluginDir, ".mcp.json"), "utf8"))).toEqual({
+        mcpServers: { srv: { command: "srv" } },
+      });
+      expect(existsSync(join(pluginDir, "skills", "one", "SKILL.md"))).toBe(true);
+      expect(codexCalls(devinLog)).toEqual([
+        ["plugins", "remove", "--local", "r"],
+        ["plugins", "install", "--local", "--yes", pluginDir],
+      ]);
+      expect(existsSync(s.env["FAKE_CODEX_LOG"]!)).toBe(false);
+
+      expect(await main(["show", "r"], s.env)).toBe(0);
+      expect(c.out.at(-1)).toContain(`${pluginDir} (sticky)`);
+
+      expect(
+        await main(["install", "--devin", "r"], { ...s.env, FAKE_DEVIN_REMOVE_EXIT: "1" }),
+      ).toBe(0);
+      expect(
+        await main(["install", "--devin", "r"], {
+          ...s.env,
+          FAKE_DEVIN_INSTALL_FAIL: "You must be logged in to manage plugins.",
+        }),
+      ).toBe(1);
+      expect(c.err.at(-1)).toContain("logged in");
+      expect(c.err.at(-1)).toContain("devin auth login");
+
+      s.role("empty");
+      expect(await main(["install", "--devin", "empty"], s.env)).toBe(1);
+      expect(c.err.at(-1)).toContain("nothing to install for Devin");
+    } finally {
+      c.restore();
+      s.cleanup();
+    }
+  });
+
   test("install --check reports missing, changed and extra plugin files without running Codex", async () => {
     const s = sandbox();
     const c = capture();
@@ -359,6 +420,7 @@ describe("main", () => {
       const shown = c.out.at(-1)!;
       expect(shown).toContain("skills: one");
       expect(shown).toContain("not installed (agentroles install)");
+      expect(shown).toContain("not installed (agentroles install --devin)");
       expect(shown).toContain("codex: role a has skills but its Codex plugin");
       expect(shown).toContain("agentvoice: --role");
       expect(shown).toContain("fx: --skills-dir");
@@ -367,6 +429,7 @@ describe("main", () => {
       expect(existsSync(s.env["FAKE_HARNESS_LOG"]!)).toBe(false);
       expect(await main(["--help"], s.env)).toBe(0);
       expect(c.out.at(-1)).toContain("agentroles install --check <role>");
+      expect(c.out.at(-1)).toContain("agentroles install --devin <role>");
       expect(await main(["--version"], s.env)).toBe(0);
     } finally {
       c.restore();
