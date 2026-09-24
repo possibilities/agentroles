@@ -6,7 +6,6 @@
 import { homedir } from "node:os";
 import { basename } from "node:path";
 import { checkCodexPlugin, codexPluginInstalled, installCodexPlugin } from "./codex-plugin.ts";
-import { agentvoiceArguments } from "./deliver/agentvoice.ts";
 import { claudeArguments } from "./deliver/claude.ts";
 import { codexArguments, codexOverrides, codexPluginId } from "./deliver/codex.ts";
 import { fxArguments } from "./deliver/fx.ts";
@@ -19,17 +18,17 @@ import { devinPluginDir, renderClaudePlugin, renderOpencodeConfig } from "./rend
 import { listRoles, loadRole, type Role, resolveRolePath } from "./role.ts";
 
 export const VERSION = "0.1.0";
-export const HARNESSES = ["claude", "codex", "agentvoice", "fx", "opencode"] as const;
+export const HARNESSES = ["claude", "codex", "fx", "opencode"] as const;
 export type Harness = (typeof HARNESSES)[number];
 
 export const HELP = `agentroles ${VERSION}
 
-Give Claude Code, Codex, AgentVoice, Fx or OpenCode a role for one invocation:
+Give Claude Code, Codex, Fx or OpenCode a role for one invocation:
 the role directory's skills, MCP servers and prompt files apply to that process
 only.
 
 Usage:
-  agentroles <role> -- <claude|codex|agentvoice|fx|opencode> [harness arguments...]
+  agentroles <role> -- <claude|codex|fx|opencode> [harness arguments...]
   agentroles list
   agentroles show <role>
   agentroles install <role>        install the role's skills as a disabled Codex plugin
@@ -42,7 +41,6 @@ directory path. A role directory holds any of:
   SYSTEM_PROMPT.md | APPEND_SYSTEM_PROMPT.md     the agent's prompt (one or the other)
   skills/<name>/SKILL.md                          skills
   mcp.json                                        MCP servers, .mcp.json shape
-  VOICE_*.md                                      AgentVoice's voice prompts
 
 The harness runs through PATH, so fleet shims still apply. Its exit code is
 returned unchanged. For install --check, 0 means fresh and 1 means absent or stale.
@@ -92,7 +90,7 @@ export function parseCommand(argv: string[]): Command {
   const separator = rest.indexOf("--");
   if (separator !== 0)
     throw new UsageError(
-      `expected "agentroles ${first} -- <claude|codex|agentvoice|fx|opencode> [arguments...]"`,
+      `expected "agentroles ${first} -- <claude|codex|fx|opencode> [arguments...]"`,
     );
   const command = rest.slice(1);
   if (command.length === 0) throw new UsageError("no harness command given after --");
@@ -128,8 +126,6 @@ export function deliver(role: Role, command: string[], env: Environ, home: strin
       const overrides = codexOverrides(role, codexPluginInstalled(role, env, home));
       return { harness, command: [bin, ...codexArguments(overrides, native)] };
     }
-    case "agentvoice":
-      return { harness, command: [bin, ...agentvoiceArguments(role, native)] };
     case "fx":
       return { harness, command: [bin, ...fxArguments(role, native)] };
     case "opencode": {
@@ -154,7 +150,6 @@ function describe(role: Role, env: Environ, home: string): string {
   if (role.systemPrompt) lines.push(`  system prompt: ${basename(role.systemPrompt)} (replaces)`);
   if (role.appendSystemPrompt)
     lines.push(`  system prompt: ${basename(role.appendSystemPrompt)} (appends)`);
-  for (const path of Object.values(role.voice)) lines.push(`  voice: ${basename(path)}`);
   lines.push(`  skills: ${role.skillNames.length > 0 ? role.skillNames.join(", ") : "none"}`);
   lines.push(
     `  mcp servers: ${role.mcpServers ? Object.keys(role.mcpServers).join(", ") : "none"}`,

@@ -25,7 +25,7 @@ accounts, workspaces or harness configuration beyond the four capabilities.
 - `src/main.ts`: command grammar, `deliver()` (harness → argv/env), exit codes.
 - `src/role.ts`: role resolution and loading; every validation a harness would
   otherwise discover late (exclusive prompt files, skill layout, mcp.json shape).
-- `src/deliver/{claude,codex,agentvoice,fx,opencode}.ts`: pure argv or env
+- `src/deliver/{claude,codex,fx,opencode}.ts`: pure argv or env
   rendering. Codex overrides follow `exec`/`review` and
   `resume <id>`. Fx flags go before the user's tokens, like Claude. OpenCode
   has no role argv; it sets `OPENCODE_CONFIG` to a cache-rendered JSON.
@@ -60,6 +60,6 @@ accounts, workspaces or harness configuration beyond the four capabilities.
 This checkout is one of the agent* fleet under `~/code`. `skills/agentroles/`
 ships into AgentStart's fixed fleet resources through
 `~/code/agentstart/scripts/sync-skills`. Cross-tool calls (claude, codex,
-agentvoice, fx, opencode, `devin plugins install`, and AgentVoice's `--role`)
+fx, opencode, and `devin plugins install`)
 belong in `~/code/agentstart/skills/fleet/MAP.md`; keep it current with any
 change here.

@@ -2,7 +2,7 @@
 
 # agentroles
 
-Give Claude Code, Codex, AgentVoice, Fx or OpenCode a role for one invocation. A
+Give Claude Code, Codex, Fx or OpenCode a role for one invocation. A
 role is a directory of skills, MCP servers and prompt files; `agentroles`
 delivers it to the harness you name by that harness's native process controls
 and runs that harness. Nothing in the role touches global harness state, the
@@ -12,7 +12,6 @@ side by side.
 ```sh
 agentroles researcher -- claude -p "Summarize the papers in ./inbox"
 agentroles researcher -- codex exec "Summarize the papers in ./inbox"
-agentroles researcher -- agentvoice --allow-full-access
 agentroles researcher -- fx
 agentroles researcher -- opencode run "Summarize the papers in ./inbox"
 ```
@@ -31,10 +30,6 @@ control of the harness it reaches; there is no agentroles-specific overlay.
 | `APPEND_SYSTEM_PROMPT.md` | Appends to the agent's default system prompt |
 | `skills/<name>/SKILL.md` | Skills, one directory each, with the usual `name`/`description` frontmatter |
 | `mcp.json` | MCP servers in Claude Code's `.mcp.json` shape: `{"mcpServers": {"<name>": {...}}}` |
-| `VOICE_AGENT_SYSTEM_PROMPT.md` / `VOICE_AGENT_APPEND_SYSTEM_PROMPT.md` | AgentVoice only: the voice agent's prompt |
-| `VOICE_ORCHESTRATOR_SYSTEM_PROMPT.md` / `VOICE_ORCHESTRATOR_APPEND_SYSTEM_PROMPT.md` | AgentVoice only: stand-ins for the general prompt files of the same kind |
-| `VOICE_ORCHESTRATOR_MULTI_AGENT_MODE.md` | AgentVoice only: native multi-agent mode text; enables V2 and replaces its delegation policy |
-| `VOICE_ORCHESTRATOR_SESSION_START.md` / `VOICE_ORCHESTRATOR_SESSION_END.md` | AgentVoice only: developer instructions to the working agent when a voice session starts or ends |
 
 A replacement and an append for the same agent cannot both be present; the
 role fails to load. A file that exists but cannot be read (a broken link, a
@@ -44,17 +39,12 @@ the role-name rule; each server has exactly one of `command` or `url`.
 
 ## What each harness receives
 
-| Capability | Claude Code | Codex CLI | AgentVoice | Fx | OpenCode |
-| --- | --- | --- | --- | --- | --- |
-| `SYSTEM_PROMPT.md` | `--system-prompt-file` | `-c model_instructions_file=<path>` | `baseInstructions` on the working thread | `--system-prompt-file` | `agent.build.prompt` in a rendered `OPENCODE_CONFIG` JSON (the default primary agent) |
-| `APPEND_SYSTEM_PROMPT.md` | `--append-system-prompt-file` | `-c developer_instructions="<text>"` (Codex's developer message after its base prompt) | `developerInstructions` on the working thread | `--append-system-prompt-file` | `instructions: [<path>]` in that JSON |
-| `mcp.json` | `--mcp-config <role>/mcp.json` | one `-c mcp_servers.<name>={...}` per server, `type` dropped and `headers` renamed `http_headers` (`sse` is rejected) | per-thread `mcp_servers` config | `--mcp-config <role>/mcp.json`; replaces `~/.fx/mcp.json` for that process (`mcpServers` is accepted as a profile alias) | `mcp` in that JSON: `command` becomes a `local` argv array, `url` becomes `remote`; `sse` is delivered as `remote` |
-| `skills/` | `--plugin-dir` on a plugin rendered under `~/.cache/agentroles/claude/<name>/` on every launch; skills appear as `/<name>:<skill>` | `-c plugins.<name>@agentroles.enabled=true` on a plugin installed once by `agentroles install`; skills appear as `$<name>:<skill>` | `skills/extraRoots/set` on the Codex child AgentVoice owns; skills appear under their own names | `--skills-dir <role>/skills` and `--no-default-skills` when the role has `skills/`; skills appear under their own names | `skills.paths: [<role>/skills]` plus `command.<name>` from each `SKILL.md` so `/<name>` appears in the TUI slash menu; global, project and external OpenCode skills still load |
-| `VOICE_*` files | ignored | ignored | read natively | ignored | ignored |
-
-AgentVoice receives only `--role <dir>` and reads the directory itself, since
-only its own process can register skill roots with the child it owns. See its
-README section "Roles" for the voice-side rules.
+| Capability | Claude Code | Codex CLI | Fx | OpenCode |
+| --- | --- | --- | --- | --- |
+| `SYSTEM_PROMPT.md` | `--system-prompt-file` | `-c model_instructions_file=<path>` | `--system-prompt-file` | `agent.build.prompt` in a rendered `OPENCODE_CONFIG` JSON (the default primary agent) |
+| `APPEND_SYSTEM_PROMPT.md` | `--append-system-prompt-file` | `-c developer_instructions="<text>"` (Codex's developer message after its base prompt) | `--append-system-prompt-file` | `instructions: [<path>]` in that JSON |
+| `mcp.json` | `--mcp-config <role>/mcp.json` | one `-c mcp_servers.<name>={...}` per server, `type` dropped and `headers` renamed `http_headers` (`sse` is rejected) | `--mcp-config <role>/mcp.json`; replaces `~/.fx/mcp.json` for that process (`mcpServers` is accepted as a profile alias) | `mcp` in that JSON: `command` becomes a `local` argv array, `url` becomes `remote`; `sse` is delivered as `remote` |
+| `skills/` | `--plugin-dir` on a plugin rendered under `~/.cache/agentroles/claude/<name>/` on every launch; skills appear as `/<name>:<skill>` | `-c plugins.<name>@agentroles.enabled=true` on a plugin installed once by `agentroles install`; skills appear as `$<name>:<skill>` | `--skills-dir <role>/skills` when present; `--no-default-skills` for any role with a prompt, MCP config or skills, including roles without `skills/`; skills appear under their own names | `skills.paths: [<role>/skills]` plus `command.<name>` from each `SKILL.md` so `/<name>` appears in the TUI slash menu; global, project and external OpenCode skills still load |
 
 OpenCode has no argv for prompts, skills or MCP. Delivery is
 `OPENCODE_CONFIG` pointing at `~/.cache/agentroles/opencode/<name>/opencode.json`,
@@ -71,6 +61,16 @@ go after `exec`/`review` or `resume <id>` and before other arguments. Fx flags
 go before the user's tokens, like Claude's. The child also receives
 `AGENTROLES_ROLE=<dir>` and `AGENTROLES_NAME=<name>` in its environment, and
 its exit code is agentroles' exit code.
+
+The installed Codex from codexnk carries `--identity`, `--capabilities` and
+`--history-dir` for **app-server** launches, plus opt-in per-thread input
+middleware. Those are not Codex CLI role controls. The role's CLI `-c` overrides
+select an embedded TUI server instead of borrowing a shared daemon that cannot
+adopt process-local configuration. Fx's carried `--shape`, `--identity` and
+`--history-dir` controls split behavior, credentials and history, but a role
+already supplies its three resources through direct invocation flags. Fx keeps
+the user's account and session selections, and user-supplied launch flags remain
+the caller's responsibility.
 
 ## Codex skills need one install
 
@@ -131,7 +131,7 @@ There is no `agentroles <role> -- devin`.
 ## Commands
 
 ```
-agentroles <role> -- <claude|codex|agentvoice|fx|opencode> [harness arguments...]
+agentroles <role> -- <claude|codex|fx|opencode> [harness arguments...]
 agentroles list                  roles under the roles home
 agentroles show <role>           files, skills, servers and each harness's arguments
 agentroles install <role>        Codex plugin install, as above
@@ -153,6 +153,8 @@ reason and, where one exists, the fix.
   than failing. Workspace `.mcp.json` can still add extra servers after trust.
 - `APPEND_SYSTEM_PROMPT.md` travels inside Codex's argv, which suits prompts,
   not large documents.
+- Fx's `--no-default-skills` is an agent-launch option. An empty role adds no
+  flags; a role with resources targets agent launches rather than utility commands.
 - Claude Code loads the rendered plugin for that session only. Codex keeps its
   installed copy until the next `agentroles install`. Devin keeps a sticky
   user-level plugin until `devin plugins remove`; project `.devin/skills` and

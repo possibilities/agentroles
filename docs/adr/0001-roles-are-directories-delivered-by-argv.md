@@ -2,6 +2,8 @@
 
 Resource composition for direct Claude/Codex delivery is narrowed by
 [ADR 0002](0002-explicit-roles-own-their-resources.md).
+AgentVoice delivery and Fx's conditional skill suppression were retired in
+[ADR 0006](0006-fork-aware-direct-role-delivery.md).
 
 Accepted 2026-09-05.
 

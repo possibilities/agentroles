@@ -1,7 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { agentvoiceArguments } from "../src/deliver/agentvoice.ts";
 import { claudeArguments } from "../src/deliver/claude.ts";
 import { codexArguments, codexCommandIndex, codexOverrides } from "../src/deliver/codex.ts";
 import { fxArguments } from "../src/deliver/fx.ts";
@@ -37,11 +36,6 @@ describe("deliveries", () => {
         "--system-prompt-file",
         join(s.roles, "s", "SYSTEM_PROMPT.md"),
       ]);
-      expect(agentvoiceArguments(role, ["--allow-full-access"])).toEqual([
-        "--role",
-        dir,
-        "--allow-full-access",
-      ]);
       expect(fxArguments(role, ["ask", "hi"])).toEqual([
         "--append-system-prompt-file",
         join(dir, "APPEND_SYSTEM_PROMPT.md"),
@@ -56,6 +50,17 @@ describe("deliveries", () => {
       expect(fxArguments(replace, [])).toEqual([
         "--system-prompt-file",
         join(s.roles, "s", "SYSTEM_PROMPT.md"),
+        "--no-default-skills",
+      ]);
+      expect(
+        fxArguments(loadRole(s.role("mcp-only", { "mcp.json": '{"mcpServers":{}}' })), []),
+      ).toEqual(["--mcp-config", join(s.roles, "mcp-only", "mcp.json"), "--no-default-skills"]);
+      expect(fxArguments(replace, ["--no-default-skills", "ask", "hi"])).toEqual([
+        "--system-prompt-file",
+        join(s.roles, "s", "SYSTEM_PROMPT.md"),
+        "--no-default-skills",
+        "ask",
+        "hi",
       ]);
       expect(fxArguments(loadRole(s.role("empty")), [])).toEqual([]);
       expect(opencodeArguments(["run", "hi"])).toEqual(["run", "hi"]);

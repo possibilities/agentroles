@@ -5,12 +5,6 @@
  *   SYSTEM_PROMPT.md | APPEND_SYSTEM_PROMPT.md       the agent's prompt
  *   skills/<name>/SKILL.md                            skills
  *   mcp.json                                          MCP servers (.mcp.json shape)
- *   VOICE_AGENT_SYSTEM_PROMPT.md | VOICE_AGENT_APPEND_SYSTEM_PROMPT.md
- *   VOICE_ORCHESTRATOR_SYSTEM_PROMPT.md | VOICE_ORCHESTRATOR_APPEND_SYSTEM_PROMPT.md
- *   VOICE_ORCHESTRATOR_SESSION_START.md, VOICE_ORCHESTRATOR_SESSION_END.md
- *
- * The VOICE_* files are AgentVoice's superset and are validated here only so
- * a broken role fails before any harness starts.
  */
 import { existsSync, lstatSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { basename, isAbsolute, join, resolve } from "node:path";
@@ -27,16 +21,6 @@ export const PROMPT_FILES = {
   append: "APPEND_SYSTEM_PROMPT.md",
 } as const;
 
-export const VOICE_FILES = {
-  voiceSystem: "VOICE_AGENT_SYSTEM_PROMPT.md",
-  voiceAppend: "VOICE_AGENT_APPEND_SYSTEM_PROMPT.md",
-  orchestratorSystem: "VOICE_ORCHESTRATOR_SYSTEM_PROMPT.md",
-  orchestratorAppend: "VOICE_ORCHESTRATOR_APPEND_SYSTEM_PROMPT.md",
-  multiAgentMode: "VOICE_ORCHESTRATOR_MULTI_AGENT_MODE.md",
-  sessionStart: "VOICE_ORCHESTRATOR_SESSION_START.md",
-  sessionEnd: "VOICE_ORCHESTRATOR_SESSION_END.md",
-} as const;
-
 export const MCP_FILE = "mcp.json";
 export const SKILLS_DIR = "skills";
 
@@ -46,8 +30,6 @@ export interface Role {
   /** Absolute path of the general replacement or append prompt, at most one. */
   systemPrompt?: string;
   appendSystemPrompt?: string;
-  /** AgentVoice's superset, present names only. */
-  voice: Partial<Record<keyof typeof VOICE_FILES, string>>;
   skillsRoot?: string;
   skillNames: string[];
   mcpPath?: string;
@@ -108,25 +90,13 @@ export function loadRole(dir: string): Role {
       "name a directory under $AGENTROLES_HOME (default ~/.config/agentroles) or give a path",
     );
   const name = basename(dir);
-  const role: Role = { name, dir, voice: {}, skillNames: [] };
+  const role: Role = { name, dir, skillNames: [] };
 
   const system = presentFile(join(dir, PROMPT_FILES.system), PROMPT_FILES.system);
   const append = presentFile(join(dir, PROMPT_FILES.append), PROMPT_FILES.append);
   exclusive(dir, system, append);
   if (system !== undefined) role.systemPrompt = system;
   if (append !== undefined) role.appendSystemPrompt = append;
-
-  for (const [key, filename] of Object.entries(VOICE_FILES) as [
-    keyof typeof VOICE_FILES,
-    string,
-  ][]) {
-    const path = presentFile(join(dir, filename), filename);
-    if (path !== undefined) role.voice[key] = path;
-  }
-  exclusive(dir, role.voice.voiceSystem, role.voice.voiceAppend);
-  // AgentVoice lets the voice-specific file stand in for the general one of
-  // the same kind, then requires one replacement or one append to remain.
-  exclusive(dir, role.voice.orchestratorSystem ?? system, role.voice.orchestratorAppend ?? append);
 
   const skillsRoot = join(dir, SKILLS_DIR);
   if (existsSync(skillsRoot)) {

@@ -5,6 +5,8 @@ AgentStart's bare shims now add permission defaults but no role resources;
 AgentRoles delivers native role arguments directly through PATH. The inert
 Codex plugin and per-invocation role boundaries remain unchanged. The original
 transport reasoning is preserved below as history.
+AgentVoice delivery was subsequently retired in
+[ADR 0006](0006-fork-aware-direct-role-delivery.md).
 
 Accepted September 14, 2026.
 

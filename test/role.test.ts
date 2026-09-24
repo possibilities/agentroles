@@ -27,9 +27,6 @@ describe("loadRole", () => {
     try {
       const dir = s.role("full", {
         "APPEND_SYSTEM_PROMPT.md": "append",
-        "VOICE_AGENT_SYSTEM_PROMPT.md": "voice",
-        "VOICE_ORCHESTRATOR_MULTI_AGENT_MODE.md": "mode",
-        "VOICE_ORCHESTRATOR_SESSION_START.md": "start",
         "skills/one/SKILL.md": SKILL,
         "skills/two/SKILL.md": SKILL,
         "mcp.json": JSON.stringify({ mcpServers: { srv: { command: "srv" } } }),
@@ -39,11 +36,6 @@ describe("loadRole", () => {
         name: "full",
         dir,
         appendSystemPrompt: join(dir, "APPEND_SYSTEM_PROMPT.md"),
-        voice: {
-          voiceSystem: join(dir, "VOICE_AGENT_SYSTEM_PROMPT.md"),
-          multiAgentMode: join(dir, "VOICE_ORCHESTRATOR_MULTI_AGENT_MODE.md"),
-          sessionStart: join(dir, "VOICE_ORCHESTRATOR_SESSION_START.md"),
-        },
         skillsRoot: join(dir, "skills"),
         skillNames: ["one", "two"],
         mcpPath: join(dir, "mcp.json"),
@@ -52,7 +44,6 @@ describe("loadRole", () => {
       expect(loadRole(s.role("bare"))).toEqual({
         name: "bare",
         dir: join(s.roles, "bare"),
-        voice: {},
         skillNames: [],
       });
       expect(listRoles(s.roles)).toEqual(["bare", "full"]);
@@ -62,28 +53,14 @@ describe("loadRole", () => {
     }
   });
 
-  test("replace and append are exclusive per agent, after voice stand-ins", () => {
+  test("replacement and append prompts are exclusive", () => {
     const s = sandbox();
     try {
-      const cases: Array<[string, string]> = [
-        ["SYSTEM_PROMPT.md", "APPEND_SYSTEM_PROMPT.md"],
-        ["VOICE_AGENT_SYSTEM_PROMPT.md", "VOICE_AGENT_APPEND_SYSTEM_PROMPT.md"],
-        ["SYSTEM_PROMPT.md", "VOICE_ORCHESTRATOR_APPEND_SYSTEM_PROMPT.md"],
-        ["APPEND_SYSTEM_PROMPT.md", "VOICE_ORCHESTRATOR_SYSTEM_PROMPT.md"],
-        ["VOICE_ORCHESTRATOR_SYSTEM_PROMPT.md", "VOICE_ORCHESTRATOR_APPEND_SYSTEM_PROMPT.md"],
-      ];
-      cases.forEach(([a, b], index) => {
-        const dir = s.role(`conflict-${index}`, { [a]: "a", [b]: "b" });
-        expect(() => loadRole(dir)).toThrow("cannot both be present");
+      const dir = s.role("conflict", {
+        "SYSTEM_PROMPT.md": "a",
+        "APPEND_SYSTEM_PROMPT.md": "b",
       });
-      // Same kind: the voice file stands in, no conflict.
-      const ok = s.role("ok", {
-        "SYSTEM_PROMPT.md": "g",
-        "VOICE_ORCHESTRATOR_SYSTEM_PROMPT.md": "v",
-      });
-      expect(loadRole(ok).voice.orchestratorSystem).toBe(
-        join(ok, "VOICE_ORCHESTRATOR_SYSTEM_PROMPT.md"),
-      );
+      expect(() => loadRole(dir)).toThrow("cannot both be present");
     } finally {
       s.cleanup();
     }
@@ -95,17 +72,15 @@ describe("loadRole", () => {
       const dir = s.role("broken");
       symlinkSync(join(dir, "missing"), join(dir, "SYSTEM_PROMPT.md"));
       expect(() => loadRole(dir)).toThrow("SYSTEM_PROMPT.md: cannot read");
-      const modePrompt = s.role("modeprompt");
-      symlinkSync(
-        join(modePrompt, "missing"),
-        join(modePrompt, "VOICE_ORCHESTRATOR_MULTI_AGENT_MODE.md"),
-      );
-      expect(() => loadRole(modePrompt)).toThrow(
-        "VOICE_ORCHESTRATOR_MULTI_AGENT_MODE.md: cannot read",
-      );
       const dirPrompt = s.role("dirprompt");
       mkdirSync(join(dirPrompt, "APPEND_SYSTEM_PROMPT.md"));
       expect(() => loadRole(dirPrompt)).toThrow("expected a regular file");
+      const retiredVoiceFile = s.role("retired-voice-file");
+      symlinkSync(
+        join(retiredVoiceFile, "missing"),
+        join(retiredVoiceFile, "VOICE_ORCHESTRATOR_MULTI_AGENT_MODE.md"),
+      );
+      expect(loadRole(retiredVoiceFile).skillNames).toEqual([]);
       const noSkill = s.role("noskill", { "skills/one/README.md": "x" });
       expect(() => loadRole(noSkill)).toThrow("has no SKILL.md");
       const badName = s.role("badname", { "skills/bad name/SKILL.md": SKILL });

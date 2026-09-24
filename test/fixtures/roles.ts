@@ -12,7 +12,6 @@ export function sandbox() {
   const fixtures = join(import.meta.dir);
   for (const [name, source] of [
     ["claude", "fake-harness"],
-    ["agentvoice", "fake-harness"],
     ["fx", "fake-harness"],
     ["opencode", "fake-harness"],
     ["codex", "fake-codex"],

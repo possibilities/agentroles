@@ -93,14 +93,6 @@ describe("main", () => {
       expect(existsSync(join(pluginDir, ".claude-plugin", "plugin.json"))).toBe(true);
       expect(existsSync(join(pluginDir, "skills", "one", "SKILL.md"))).toBe(true);
 
-      expect(await main(["r", "--", "agentvoice", "--allow-full-access"], s.env)).toBe(0);
-      expect(readFileSync(s.env["FAKE_HARNESS_LOG"]!, "utf8").split("\n").slice(0, 4)).toEqual([
-        "fake-harness",
-        "--role",
-        dir,
-        "--allow-full-access",
-      ]);
-
       expect(await main(["r", "--", "fx"], s.env)).toBe(0);
       expect(readFileSync(s.env["FAKE_HARNESS_LOG"]!, "utf8").split("\n").slice(0, 8)).toEqual([
         "fake-harness",
@@ -165,6 +157,8 @@ describe("main", () => {
 
       expect(await main(["r", "--", "claude"], { ...s.env, FAKE_HARNESS_EXIT: "7" })).toBe(7);
       expect(await main(["r", "--", "python"], s.env)).toBe(1);
+      expect(c.err.at(-1)).toContain("not a supported harness");
+      expect(await main(["r", "--", "agentvoice"], s.env)).toBe(1);
       expect(c.err.at(-1)).toContain("not a supported harness");
       expect(await main(["absent", "--", "claude"], s.env)).toBe(1);
       expect(c.err.at(-1)).toContain("role directory not found");
@@ -414,7 +408,7 @@ describe("main", () => {
       expect(shown).toContain("not installed (agentroles install)");
       expect(shown).toContain("not installed (agentroles install --devin)");
       expect(shown).toContain("codex: role a has skills but its Codex plugin");
-      expect(shown).toContain("agentvoice: --role");
+      expect(shown).not.toContain("agentvoice:");
       expect(shown).toContain("fx: --skills-dir");
       expect(shown).toContain("--no-default-skills");
       expect(shown).toContain("opencode: OPENCODE_CONFIG=");
