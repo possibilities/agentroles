@@ -16,8 +16,9 @@ harness through PATH. For direct Claude/Codex delivery, the role supplies its
 native skill and MCP arguments. Fx receives the
 same native prompt and MCP flags as Claude, plus `--skills-dir` when present
 and `--no-default-skills` for any nonempty role. OpenCode receives a
-cache-rendered `opencode.json` via `OPENCODE_CONFIG` (`skills.paths` plus
-`command.<name>` for each skill so `/name` appears in the TUI). _Avoid_: injection, mangling.
+cache-rendered `opencode.json` via `OPENCODE_CONFIG`; its exact fields follow
+the detected major. V2 uses a private server and a native plugin hook for
+append prompts. _Avoid_: injection, mangling.
 
 **Roles home** — `$AGENTROLES_HOME`, default `~/.config/agentroles`, where
 named roles live. _Avoid_: registry, catalog.

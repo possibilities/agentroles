@@ -41,18 +41,17 @@ the role-name rule; each server has exactly one of `command` or `url`.
 
 | Capability | Claude Code | Codex CLI | Fx | OpenCode |
 | --- | --- | --- | --- | --- |
-| `SYSTEM_PROMPT.md` | `--system-prompt-file` | `-c model_instructions_file=<path>` | `--system-prompt-file` | `agent.build.prompt` in a rendered `OPENCODE_CONFIG` JSON (the default primary agent) |
-| `APPEND_SYSTEM_PROMPT.md` | `--append-system-prompt-file` | `-c developer_instructions="<text>"` (Codex's developer message after its base prompt) | `--append-system-prompt-file` | `instructions: [<path>]` in that JSON |
-| `mcp.json` | `--mcp-config <role>/mcp.json` | one `-c mcp_servers.<name>={...}` per server, `type` dropped and `headers` renamed `http_headers` (`sse` is rejected) | `--mcp-config <role>/mcp.json`; replaces `~/.fx/mcp.json` for that process (`mcpServers` is accepted as a profile alias) | `mcp` in that JSON: `command` becomes a `local` argv array, `url` becomes `remote`; `sse` is delivered as `remote` |
-| `skills/` | `--plugin-dir` on a plugin rendered under `~/.cache/agentroles/claude/<name>/` on every launch; skills appear as `/<name>:<skill>` | `-c plugins.<name>@agentroles.enabled=true` on a plugin installed once by `agentroles install`; skills appear as `$<name>:<skill>` | `--skills-dir <role>/skills` when present; `--no-default-skills` for any role with a prompt, MCP config or skills, including roles without `skills/`; skills appear under their own names | `skills.paths: [<role>/skills]` plus `command.<name>` from each `SKILL.md` so `/<name>` appears in the TUI slash menu; global, project and external OpenCode skills still load |
+| `SYSTEM_PROMPT.md` | `--system-prompt-file` | `-c model_instructions_file=<path>` | `--system-prompt-file` | V1 `agent.build.prompt`; V2 `agents.build.system` |
+| `APPEND_SYSTEM_PROMPT.md` | `--append-system-prompt-file` | `-c developer_instructions="<text>"` (Codex's developer message after its base prompt) | `--append-system-prompt-file` | V1 `instructions: [<path>]`; V2 per-launch plugin appends to the assembled system instructions |
+| `mcp.json` | `--mcp-config <role>/mcp.json` | one `-c mcp_servers.<name>={...}` per server, `type` dropped and `headers` renamed `http_headers` (`sse` is rejected) | `--mcp-config <role>/mcp.json`; replaces `~/.fx/mcp.json` for that process (`mcpServers` is accepted as a profile alias) | `mcp` in V1, `mcp.servers` in V2; local commands and remote URLs translated |
+| `skills/` | `--plugin-dir` on a plugin rendered under `~/.cache/agentroles/claude/<name>/` on every launch; skills appear as `/<name>:<skill>` | `-c plugins.<name>@agentroles.enabled=true` on a plugin installed once by `agentroles install`; skills appear as `$<name>:<skill>` | `--skills-dir <role>/skills` when present; `--no-default-skills` for any role with a prompt, MCP config or skills, including roles without `skills/`; skills appear under their own names | V1 `skills.paths` and `command.<name>`; V2 `skills` and `commands.<name>` |
 
-OpenCode has no argv for prompts, skills or MCP. Delivery is
-`OPENCODE_CONFIG` pointing at `~/.cache/agentroles/opencode/<name>/opencode.json`,
-regenerated on every launch. OpenCode merges that file with global and project
-config, so a project `opencode.json` can still override role keys. Skills are
-both a `skills.paths` root and `command` entries: the TUI slash menu hides
-skill-sourced commands, so `/collab` comes from `command.collab`. User tokens
-are unchanged; `--agent plan` still selects `plan`, whose prompt is not replaced.
+OpenCode is detected by major version on launch. V1 keeps its cache-rendered
+`OPENCODE_CONFIG`. V2 renders a unique per-launch config and append plugin and
+starts a private `--standalone` server; `attach`, `--server` and utility commands
+cannot deliver a role to that private session. Both versions expose role skills
+as native slash commands. A project config may still override role keys;
+`--agent plan` selects `plan`, whose prompt is not replaced.
 
 The harness is found on `PATH`, so installed permission shims still apply.
 For direct Claude and Codex launches, the role supplies its skill and MCP

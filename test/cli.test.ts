@@ -134,6 +134,24 @@ describe("main", () => {
         },
         mcp: { srv: { type: "local", command: ["srv"] } },
       });
+      expect(
+        await main(["r", "--", "opencode", "run", "hi"], {
+          ...s.env,
+          FAKE_OPENCODE_VERSION: "opencode v2.0.16",
+        }),
+      ).toBe(0);
+      const v2Log = readFileSync(s.env["FAKE_HARNESS_LOG"]!, "utf8").split("\n");
+      expect(v2Log.slice(0, 4)).toEqual(["fake-harness", "run", "--standalone", "hi"]);
+      const v2ConfigPath = v2Log.find((line) => line.startsWith("OPENCODE_CONFIG="))?.slice(16);
+      expect(v2ConfigPath).toContain("/opencode/r/launch-");
+      expect(existsSync(v2ConfigPath!)).toBe(false);
+      expect(
+        await main(["r", "--", "opencode", "run", "hi"], {
+          ...s.env,
+          FAKE_OPENCODE_VERSION: "opencode v3.0.0",
+        }),
+      ).toBe(1);
+      expect(c.err.at(-1)).toContain("unsupported OpenCode version");
       s.role("empty-role");
       expect(
         await main(["empty-role", "--", "opencode"], { ...s.env, OPENCODE_CONFIG: "/stale.json" }),

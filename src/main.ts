@@ -3,18 +3,30 @@
  * agentroles: give one harness invocation a role. The role directory is the
  * contract (README); this file only routes commands and renders arguments.
  */
+import { rmSync } from "node:fs";
 import { homedir } from "node:os";
 import { basename } from "node:path";
 import { checkCodexPlugin, codexPluginInstalled, installCodexPlugin } from "./codex-plugin.ts";
 import { claudeArguments } from "./deliver/claude.ts";
 import { codexArguments, codexOverrides, codexPluginId } from "./deliver/codex.ts";
 import { fxArguments } from "./deliver/fx.ts";
-import { opencodeArguments, opencodeConfig, opencodeEnv } from "./deliver/opencode.ts";
+import {
+  type OpencodeMajor,
+  opencodeArguments,
+  opencodeConfig,
+  opencodeEnv,
+  opencodeVersion,
+} from "./deliver/opencode.ts";
 import { devinPluginRendered, installDevinPlugin } from "./devin-plugin.ts";
 import { RoleError, UsageError } from "./errors.ts";
 import { runHarness } from "./exec.ts";
 import { cacheHome, type Environ, rolesHome } from "./paths.ts";
-import { devinPluginDir, renderClaudePlugin, renderOpencodeConfig } from "./render.ts";
+import {
+  devinPluginDir,
+  renderClaudePlugin,
+  renderOpencodeConfig,
+  renderOpencodeV2,
+} from "./render.ts";
 import { listRoles, loadRole, type Role, resolveRolePath } from "./role.ts";
 
 export const VERSION = "0.1.0";
@@ -110,10 +122,17 @@ export interface Delivery {
   harness: Harness;
   command: string[];
   env?: Environ;
+  cleanup?: string;
 }
 
 /** Renders the full command; Claude and OpenCode write cache files before launch. */
-export function deliver(role: Role, command: string[], env: Environ, home: string): Delivery {
+export function deliver(
+  role: Role,
+  command: string[],
+  env: Environ,
+  home: string,
+  opencodeMajor: OpencodeMajor = 1,
+): Delivery {
   const harness = harnessOf(command);
   const [bin, ...native] = command as [string, ...string[]];
   switch (harness) {
@@ -129,13 +148,26 @@ export function deliver(role: Role, command: string[], env: Environ, home: strin
     case "fx":
       return { harness, command: [bin, ...fxArguments(role, native)] };
     case "opencode": {
-      const config = opencodeConfig(role);
+      const hasRole =
+        role.systemPrompt !== undefined ||
+        role.appendSystemPrompt !== undefined ||
+        role.skillsRoot !== undefined ||
+        role.mcpServers !== undefined;
+      const args = opencodeArguments(native, opencodeMajor, hasRole);
+      const config = opencodeMajor === 1 ? opencodeConfig(role) : null;
+      const rendered =
+        opencodeMajor === 2 && hasRole ? renderOpencodeV2(role, cacheHome(env, home)) : null;
       const configPath =
-        config === null ? null : renderOpencodeConfig(role, cacheHome(env, home), config);
+        opencodeMajor === 1
+          ? config === null
+            ? null
+            : renderOpencodeConfig(role, cacheHome(env, home), config)
+          : (rendered?.path ?? null);
       return {
         harness,
-        command: [bin, ...opencodeArguments(native)],
+        command: [bin, ...args],
         env: opencodeEnv(configPath),
+        ...(rendered === null ? {} : { cleanup: rendered.directory }),
       };
     }
   }
@@ -171,6 +203,8 @@ function describe(role: Role, env: Environ, home: string): string {
     try {
       const delivery = deliver(role, [harness], env, home);
       lines.push(`  ${harness}: ${describeDelivery(delivery)}`);
+      if (harness === "opencode")
+        lines.push("  opencode V2: private server; per-launch native config and append plugin");
     } catch (error) {
       lines.push(`  ${harness}: ${error instanceof Error ? error.message : String(error)}`);
     }
@@ -238,8 +272,13 @@ export async function main(argv: string[], env: Environ = process.env): Promise<
       }
       case "run": {
         const role = load(command.role!, env, home);
-        const delivery = deliver(role, command.command!, env, home);
-        return await runHarness(role, delivery.command, env, delivery.env ?? {});
+        const major = harnessOf(command.command!) === "opencode" ? opencodeVersion(env) : 1;
+        const delivery = deliver(role, command.command!, env, home, major);
+        try {
+          return await runHarness(role, delivery.command, env, delivery.env ?? {});
+        } finally {
+          if (delivery.cleanup) rmSync(delivery.cleanup, { recursive: true, force: true });
+        }
       }
     }
   } catch (error) {

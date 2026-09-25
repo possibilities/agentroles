@@ -1,13 +1,13 @@
 import { describe, expect, test } from "bun:test";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { claudeArguments } from "../src/deliver/claude.ts";
 import { codexArguments, codexCommandIndex, codexOverrides } from "../src/deliver/codex.ts";
 import { fxArguments } from "../src/deliver/fx.ts";
-import { opencodeArguments, opencodeConfig } from "../src/deliver/opencode.ts";
+import { opencodeArguments, opencodeConfig, opencodeVersion } from "../src/deliver/opencode.ts";
 import { RoleError } from "../src/errors.ts";
 import { cacheHome } from "../src/paths.ts";
-import { renderDevinPlugin } from "../src/render.ts";
+import { renderDevinPlugin, renderOpencodeV2 } from "../src/render.ts";
 import { loadRole } from "../src/role.ts";
 import { SKILL, sandbox } from "./fixtures/roles.ts";
 
@@ -86,6 +86,44 @@ describe("deliveries", () => {
         agent: { build: { prompt: "x" } },
       });
       expect(opencodeConfig(loadRole(s.role("empty")))).toBeNull();
+      expect(opencodeVersion(s.env)).toBe(1);
+      expect(opencodeVersion({ ...s.env, FAKE_OPENCODE_VERSION: "opencode v2.0.16" })).toBe(2);
+      expect(() => opencodeVersion({ ...s.env, FAKE_OPENCODE_VERSION: "opencode v3.0.0" })).toThrow(
+        "unsupported OpenCode version",
+      );
+      expect(opencodeArguments(["run", "hi"], 2, true)).toEqual(["run", "--standalone", "hi"]);
+      expect(opencodeArguments([], 2, true)).toEqual(["--standalone"]);
+      expect(() => opencodeArguments(["attach", "http://localhost:4096"], 2, true)).toThrow(
+        "separately running server",
+      );
+      expect(() => opencodeArguments(["run", "--server=localhost:4096"], 2, true)).toThrow(
+        "separately running server",
+      );
+      expect(() => opencodeArguments(["mcp", "list"], 2, true)).toThrow("utility command");
+
+      const v2a = renderOpencodeV2(role, cacheHome(s.env, s.home));
+      const v2b = renderOpencodeV2(role, cacheHome(s.env, s.home));
+      try {
+        expect(v2a.path).not.toBe(v2b.path);
+        const plugin = join(v2a.directory, "append");
+        expect(JSON.parse(readFileSync(v2a.path, "utf8"))).toEqual({
+          $schema: "https://opencode.ai/config.json",
+          plugins: [plugin],
+          skills: [join(dir, "skills")],
+          commands: opencodeConfig(role)?.["command"],
+          mcp: { servers: { srv: { type: "local", command: ["srv"] } } },
+        });
+        expect(readFileSync(join(plugin, "index.ts"), "utf8")).toContain(
+          'event.system.push({ type: "text", text: "a" })',
+        );
+        expect(opencodeConfig(replace, 2)).toEqual({
+          $schema: "https://opencode.ai/config.json",
+          agents: { build: { system: "x" } },
+        });
+      } finally {
+        rmSync(v2a.directory, { recursive: true, force: true });
+        rmSync(v2b.directory, { recursive: true, force: true });
+      }
       const quoted = loadRole(
         s.role("quoted", {
           "skills/collab/SKILL.md":

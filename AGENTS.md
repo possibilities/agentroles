@@ -28,11 +28,13 @@ accounts, workspaces or harness configuration beyond the four capabilities.
 - `src/deliver/{claude,codex,fx,opencode}.ts`: pure argv or env
   rendering. Codex overrides follow `exec`/`review` and
   `resume <id>`. Fx flags go before the user's tokens, like Claude. OpenCode
-  has no role argv; it sets `OPENCODE_CONFIG` to a cache-rendered JSON.
+  has no role prompt argv; it detects V1/V2, sets `OPENCODE_CONFIG` to a
+  cache-rendered JSON, and uses a private V2 server for nonempty roles. See
+  [ADR 0007](docs/adr/0007-deliver-roles-to-both-opencode-majors.md).
 - `src/mcp.ts`, `src/toml.ts`: `.mcp.json` parsing and the Codex/OpenCode
   translations; TOML rendering that Codex's `-c` parser accepts verbatim.
 - `src/render.ts`: cache-rendered Claude plugin, Codex marketplace, OpenCode
-  config and Devin plugin; always regenerated, never edited in place.
+  config and V2 append plugin, and Devin plugin; always regenerated, never edited in place.
 - `src/codex-plugin.ts`, `src/app-server.ts`: `install` through Codex's own
   plugin CLI and config editor RPC; the only path that writes Codex state.
 - `src/devin-plugin.ts`: `install --devin` through Devin's plugin CLI; the only

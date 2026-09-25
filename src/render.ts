@@ -3,8 +3,17 @@
  * are rendered into one under the cache on every launch: a manifest naming
  * the role plus a fresh copy of skills/. Regenerated, never edited in place.
  */
-import { copyFileSync, cpSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+  copyFileSync,
+  cpSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { join } from "node:path";
+import { opencodeAppendPlugin, opencodeConfig } from "./deliver/opencode.ts";
 import { RoleError } from "./errors.ts";
 import type { Role } from "./role.ts";
 
@@ -46,6 +55,31 @@ export function renderOpencodeConfig(
   const path = join(target, "opencode.json");
   writeFileSync(path, `${JSON.stringify(config, null, 2)}\n`);
   return path;
+}
+
+/** V2's server reads role config and plugin code; each private server gets its own files. */
+export function renderOpencodeV2(
+  role: Role,
+  cacheRoot: string,
+): { path: string; directory: string } {
+  const root = join(cacheRoot, "opencode", role.name);
+  mkdirSync(root, { recursive: true });
+  const directory = mkdtempSync(join(root, "launch-"));
+  try {
+    const pluginPath = join(directory, "append");
+    if (role.appendSystemPrompt !== undefined) {
+      mkdirSync(pluginPath);
+      writeFileSync(join(pluginPath, "index.ts"), opencodeAppendPlugin(role));
+    }
+    const config = opencodeConfig(role, 2, pluginPath);
+    if (config === null) throw new RoleError("cannot render an empty OpenCode 2 role");
+    const path = join(directory, "opencode.json");
+    writeFileSync(path, `${JSON.stringify(config, null, 2)}\n`);
+    return { path, directory };
+  } catch (error) {
+    rmSync(directory, { recursive: true, force: true });
+    throw error;
+  }
 }
 
 export const CODEX_MARKETPLACE = "agentroles";

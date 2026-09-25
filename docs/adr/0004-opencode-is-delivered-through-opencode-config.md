@@ -1,6 +1,8 @@
 # 0004: OpenCode is delivered through OPENCODE_CONFIG
 
 Accepted 2026-09-23.
+The V1-specific field mapping and fixed cache path below are superseded by
+[ADR 0007](0007-deliver-roles-to-both-opencode-majors.md). V1 remains supported.
 
 OpenCode CLI has no argv for a system prompt, skill root or MCP config file.
 Its documented per-process control is `OPENCODE_CONFIG` pointing at additional
