@@ -8,9 +8,9 @@ import type { Role } from "../role.ts";
 
 const OPENCODE_SCHEMA = "https://opencode.ai/config.json";
 const OPENCODE_DEFAULT_AGENT = "build";
-/** Refuse an unsupported prompt contract before writing or launching a role. */
-export function assertOpencodeV2(env: Environ): void {
-  const binary = resolveBinary("opencode", env);
+/** Probe the exact executable that will launch, including explicit paths. */
+export function assertOpencodeV2(env: Environ, name = "opencode"): void {
+  const binary = resolveBinary(name, env);
   const result = Bun.spawnSync([binary, "--version"], {
     env: env as Record<string, string>,
     stdin: "ignore",

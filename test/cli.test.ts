@@ -126,6 +126,16 @@ describe("main", () => {
       expect(c.err.at(-1)).toContain("unsupported OpenCode version");
       expect(await main(["r", "--", "opencode", "run", "hi"], s.env)).toBe(1);
       expect(c.err.at(-1)).toContain("does not support OpenCode 1");
+      const explicitV1 = join(s.home, "legacy", "opencode");
+      mkdirSync(join(s.home, "legacy"));
+      writeFileSync(explicitV1, "#!/bin/sh\nprintf '1.18.32\\n'\n", { mode: 0o755 });
+      expect(
+        await main(["r", "--", explicitV1, "run", "hi"], {
+          ...s.env,
+          FAKE_OPENCODE_VERSION: "opencode v2.0.16",
+        }),
+      ).toBe(1);
+      expect(c.err.at(-1)).toContain("does not support OpenCode 1");
       expect(await main(["r", "--", "opencode2", "run", "hi"], s.env)).toBe(1);
       expect(c.err.at(-1)).toContain("not a supported harness");
       s.role("empty-role");

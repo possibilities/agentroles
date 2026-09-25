@@ -247,7 +247,7 @@ export async function main(argv: string[], env: Environ = process.env): Promise<
       }
       case "run": {
         const role = load(command.role!, env, home);
-        if (harnessOf(command.command!) === "opencode") assertOpencodeV2(env);
+        if (harnessOf(command.command!) === "opencode") assertOpencodeV2(env, command.command![0]);
         const delivery = deliver(role, command.command!, env, home);
         try {
           return await runHarness(role, delivery.command, env, delivery.env ?? {});
