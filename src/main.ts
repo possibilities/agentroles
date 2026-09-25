@@ -10,23 +10,12 @@ import { checkCodexPlugin, codexPluginInstalled, installCodexPlugin } from "./co
 import { claudeArguments } from "./deliver/claude.ts";
 import { codexArguments, codexOverrides, codexPluginId } from "./deliver/codex.ts";
 import { fxArguments } from "./deliver/fx.ts";
-import {
-  type OpencodeMajor,
-  opencodeArguments,
-  opencodeConfig,
-  opencodeEnv,
-  opencodeVersion,
-} from "./deliver/opencode.ts";
+import { assertOpencodeV2, opencodeArguments, opencodeEnv } from "./deliver/opencode.ts";
 import { devinPluginRendered, installDevinPlugin } from "./devin-plugin.ts";
 import { RoleError, UsageError } from "./errors.ts";
 import { runHarness } from "./exec.ts";
 import { cacheHome, type Environ, rolesHome } from "./paths.ts";
-import {
-  devinPluginDir,
-  renderClaudePlugin,
-  renderOpencodeConfig,
-  renderOpencodeV2,
-} from "./render.ts";
+import { devinPluginDir, renderClaudePlugin, renderOpencode } from "./render.ts";
 import { listRoles, loadRole, type Role, resolveRolePath } from "./role.ts";
 
 export const VERSION = "0.1.0";
@@ -40,7 +29,7 @@ the role directory's skills, MCP servers and prompt files apply to that process
 only.
 
 Usage:
-  agentroles <role> -- <claude|codex|fx|opencode|opencode2> [harness arguments...]
+  agentroles <role> -- <claude|codex|fx|opencode> [harness arguments...]
   agentroles list
   agentroles show <role>
   agentroles install <role>        install the role's skills as a disabled Codex plugin
@@ -102,7 +91,7 @@ export function parseCommand(argv: string[]): Command {
   const separator = rest.indexOf("--");
   if (separator !== 0)
     throw new UsageError(
-      `expected "agentroles ${first} -- <claude|codex|fx|opencode|opencode2> [arguments...]"`,
+      `expected "agentroles ${first} -- <claude|codex|fx|opencode> [arguments...]"`,
     );
   const command = rest.slice(1);
   if (command.length === 0) throw new UsageError("no harness command given after --");
@@ -111,11 +100,10 @@ export function parseCommand(argv: string[]): Command {
 
 export function harnessOf(command: string[]): Harness {
   const name = basename(command[0] ?? "");
-  if (name === "opencode2") return "opencode";
   if ((HARNESSES as readonly string[]).includes(name)) return name as Harness;
   throw new RoleError(
     `"${name}" is not a supported harness`,
-    `use one of ${HARNESSES.join(", ")}, opencode2 after --`,
+    `use one of ${HARNESSES.join(", ")} after --`,
   );
 }
 
@@ -127,13 +115,7 @@ export interface Delivery {
 }
 
 /** Renders the full command; Claude and OpenCode write cache files before launch. */
-export function deliver(
-  role: Role,
-  command: string[],
-  env: Environ,
-  home: string,
-  opencodeMajor: OpencodeMajor = 1,
-): Delivery {
+export function deliver(role: Role, command: string[], env: Environ, home: string): Delivery {
   const harness = harnessOf(command);
   const [bin, ...native] = command as [string, ...string[]];
   switch (harness) {
@@ -154,20 +136,12 @@ export function deliver(
         role.appendSystemPrompt !== undefined ||
         role.skillsRoot !== undefined ||
         role.mcpServers !== undefined;
-      const args = opencodeArguments(native, opencodeMajor, hasRole);
-      const config = opencodeMajor === 1 ? opencodeConfig(role) : null;
-      const rendered =
-        opencodeMajor === 2 && hasRole ? renderOpencodeV2(role, cacheHome(env, home)) : null;
-      const configPath =
-        opencodeMajor === 1
-          ? config === null
-            ? null
-            : renderOpencodeConfig(role, cacheHome(env, home), config)
-          : (rendered?.path ?? null);
+      const args = opencodeArguments(native, hasRole);
+      const rendered = hasRole ? renderOpencode(role, cacheHome(env, home)) : null;
       return {
         harness,
         command: [bin, ...args],
-        env: opencodeEnv(configPath),
+        env: opencodeEnv(rendered?.path ?? null),
         ...(rendered === null ? {} : { cleanup: rendered.directory }),
       };
     }
@@ -273,11 +247,8 @@ export async function main(argv: string[], env: Environ = process.env): Promise<
       }
       case "run": {
         const role = load(command.role!, env, home);
-        const major =
-          harnessOf(command.command!) === "opencode"
-            ? opencodeVersion(env, command.command![0])
-            : 1;
-        const delivery = deliver(role, command.command!, env, home, major);
+        if (harnessOf(command.command!) === "opencode") assertOpencodeV2(env);
+        const delivery = deliver(role, command.command!, env, home);
         try {
           return await runHarness(role, delivery.command, env, delivery.env ?? {});
         } finally {

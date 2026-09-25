@@ -42,26 +42,10 @@ export function renderClaudePlugin(role: Role, cacheRoot: string): string {
 /**
  * OpenCode loads extra per-process config from OPENCODE_CONFIG. Regenerated
  * on every launch, never edited in place. Skills stay in the role directory;
- * only the JSON OpenCode reads is copied into cache.
+ * the JSON and optional append plugin are written into cache.
  */
-export function renderOpencodeConfig(
-  role: Role,
-  cacheRoot: string,
-  config: Record<string, unknown>,
-): string {
-  const target = join(cacheRoot, "opencode", role.name);
-  rmSync(target, { recursive: true, force: true });
-  mkdirSync(target, { recursive: true });
-  const path = join(target, "opencode.json");
-  writeFileSync(path, `${JSON.stringify(config, null, 2)}\n`);
-  return path;
-}
-
 /** V2's server reads role config and plugin code; each private server gets its own files. */
-export function renderOpencodeV2(
-  role: Role,
-  cacheRoot: string,
-): { path: string; directory: string } {
+export function renderOpencode(role: Role, cacheRoot: string): { path: string; directory: string } {
   const root = join(cacheRoot, "opencode", role.name);
   mkdirSync(root, { recursive: true });
   const directory = mkdtempSync(join(root, "launch-"));
@@ -71,7 +55,7 @@ export function renderOpencodeV2(
       mkdirSync(pluginPath);
       writeFileSync(join(pluginPath, "index.ts"), opencodeAppendPlugin(role));
     }
-    const config = opencodeConfig(role, 2, pluginPath);
+    const config = opencodeConfig(role, pluginPath);
     if (config === null) throw new RoleError("cannot render an empty OpenCode 2 role");
     const path = join(directory, "opencode.json");
     writeFileSync(path, `${JSON.stringify(config, null, 2)}\n`);

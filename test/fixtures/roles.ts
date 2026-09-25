@@ -14,7 +14,6 @@ export function sandbox() {
     ["claude", "fake-harness"],
     ["fx", "fake-harness"],
     ["opencode", "fake-harness"],
-    ["opencode2", "fake-harness"],
     ["codex", "fake-codex"],
     ["devin", "fake-devin"],
   ] as const) {

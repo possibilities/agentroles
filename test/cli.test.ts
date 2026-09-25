@@ -49,7 +49,7 @@ describe("command grammar", () => {
       role: "r",
       command: ["claude", "-p", "x"],
     });
-    expect(harnessOf(["opencode2", "run"])).toBe("opencode");
+    expect(() => harnessOf(["opencode2", "run"])).toThrow("not a supported harness");
     for (const argv of [
       ["r"],
       ["r", "claude"],
@@ -106,35 +106,6 @@ describe("main", () => {
         "--no-default-skills",
       ]);
 
-      expect(await main(["r", "--", "opencode", "run", "hi"], s.env)).toBe(0);
-      const opencodeLog = readFileSync(s.env["FAKE_HARNESS_LOG"]!, "utf8").split("\n");
-      const opencodeConfigPath = join(
-        s.home,
-        ".cache",
-        "agentroles",
-        "opencode",
-        "r",
-        "opencode.json",
-      );
-      expect(opencodeLog.slice(0, 3)).toEqual(["fake-harness", "run", "hi"]);
-      expect(opencodeLog).toContain(`OPENCODE_CONFIG=${opencodeConfigPath}`);
-      expect(JSON.parse(readFileSync(opencodeConfigPath, "utf8"))).toEqual({
-        $schema: "https://opencode.ai/config.json",
-        instructions: [join(dir, "APPEND_SYSTEM_PROMPT.md")],
-        skills: { paths: [join(dir, "skills")] },
-        command: {
-          one: {
-            template: [
-              "Do the thing.",
-              "",
-              `Base directory for this skill: ${join(dir, "skills", "one")}`,
-              "Relative paths in this skill (e.g., scripts/, references/) are relative to this base directory.",
-            ].join("\n"),
-            description: "A test skill.",
-          },
-        },
-        mcp: { srv: { type: "local", command: ["srv"] } },
-      });
       expect(
         await main(["r", "--", "opencode", "run", "hi"], {
           ...s.env,
@@ -143,18 +114,6 @@ describe("main", () => {
       ).toBe(0);
       const v2Log = readFileSync(s.env["FAKE_HARNESS_LOG"]!, "utf8").split("\n");
       expect(v2Log.slice(0, 4)).toEqual(["fake-harness", "run", "--standalone", "hi"]);
-      expect(
-        await main(["r", "--", "opencode2", "run", "hi"], {
-          ...s.env,
-          FAKE_OPENCODE_VERSION: "opencode v2.0.16",
-        }),
-      ).toBe(0);
-      expect(readFileSync(s.env["FAKE_HARNESS_LOG"]!, "utf8").split("\n").slice(0, 4)).toEqual([
-        "fake-harness",
-        "run",
-        "--standalone",
-        "hi",
-      ]);
       const v2ConfigPath = v2Log.find((line) => line.startsWith("OPENCODE_CONFIG="))?.slice(16);
       expect(v2ConfigPath).toContain("/opencode/r/launch-");
       expect(existsSync(v2ConfigPath!)).toBe(false);
@@ -165,9 +124,17 @@ describe("main", () => {
         }),
       ).toBe(1);
       expect(c.err.at(-1)).toContain("unsupported OpenCode version");
+      expect(await main(["r", "--", "opencode", "run", "hi"], s.env)).toBe(1);
+      expect(c.err.at(-1)).toContain("does not support OpenCode 1");
+      expect(await main(["r", "--", "opencode2", "run", "hi"], s.env)).toBe(1);
+      expect(c.err.at(-1)).toContain("not a supported harness");
       s.role("empty-role");
       expect(
-        await main(["empty-role", "--", "opencode"], { ...s.env, OPENCODE_CONFIG: "/stale.json" }),
+        await main(["empty-role", "--", "opencode"], {
+          ...s.env,
+          FAKE_OPENCODE_VERSION: "opencode v2.0.16",
+          OPENCODE_CONFIG: "/stale.json",
+        }),
       ).toBe(0);
       expect(readFileSync(s.env["FAKE_HARNESS_LOG"]!, "utf8").split("\n")).toContain(
         "OPENCODE_CONFIG=",

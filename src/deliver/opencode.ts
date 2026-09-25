@@ -8,37 +8,28 @@ import type { Role } from "../role.ts";
 
 const OPENCODE_SCHEMA = "https://opencode.ai/config.json";
 const OPENCODE_DEFAULT_AGENT = "build";
-export type OpencodeMajor = 1 | 2;
-
-/** Probe the executable that PATH will launch, not npm's current dist-tag. */
-export function opencodeVersion(env: Environ, name = "opencode"): OpencodeMajor {
-  const binary = resolveBinary(name, env);
+/** Refuse an unsupported prompt contract before writing or launching a role. */
+export function assertOpencodeV2(env: Environ): void {
+  const binary = resolveBinary("opencode", env);
   const result = Bun.spawnSync([binary, "--version"], {
     env: env as Record<string, string>,
     stdin: "ignore",
   });
   const output = new TextDecoder().decode(result.stdout).trim();
   const match = /^(?:opencode\s+)?v?(\d+)\.\d+\.\d+(?:[-+][\w.-]+)?$/.exec(output);
-  const major = Number(match?.[1]);
-  if (result.exitCode !== 0 || (major !== 1 && major !== 2))
+  if (result.exitCode !== 0 || Number(match?.[1]) !== 2)
     throw new RoleError(
       `unsupported OpenCode version from ${binary}: ${output || "no version reported"}`,
-      "install OpenCode 1 or 2; agentroles will not launch with an unknown prompt contract",
+      "install OpenCode 2 as opencode; agentroles does not support OpenCode 1",
     );
-  return major;
 }
 
 /**
- * OpenCode has no argv for prompts, skills or MCP. V1 merges OPENCODE_CONFIG
- * into its process. V2 also needs a private server so role config and the
+ * OpenCode has no argv for prompts, skills or MCP. V2 needs a private server so role config and the
  * append plugin cannot attach to an unrelated shared server.
  */
-export function opencodeArguments(
-  native: string[],
-  major: OpencodeMajor = 1,
-  hasRole = false,
-): string[] {
-  if (major === 1 || !hasRole) return native;
+export function opencodeArguments(native: string[], hasRole = false): string[] {
+  if (!hasRole) return native;
   if (
     native[0] === "attach" ||
     native.includes("--server") ||
@@ -84,39 +75,35 @@ export function opencodeArguments(
 }
 
 /**
- * Role files mapped onto the target major's config schema. Null for an empty
- * role. V1 uses instructions for append; V2 uses a server plugin that adds
+ * Role files mapped onto the V2 config schema. Null for an empty
+ * role. A server plugin adds
  * text to assembled agent-loop instructions without replacing the base prompt.
  * V2's plugin path must be a directory with an index.ts entrypoint.
  */
 export function opencodeConfig(
   role: Role,
-  major: OpencodeMajor = 1,
   appendPluginPath?: string,
 ): Record<string, unknown> | null {
   const config: Record<string, unknown> = { $schema: OPENCODE_SCHEMA };
   if (role.systemPrompt !== undefined)
-    config[major === 1 ? "agent" : "agents"] = {
+    config["agents"] = {
       [OPENCODE_DEFAULT_AGENT]: {
-        [major === 1 ? "prompt" : "system"]: readFileSync(role.systemPrompt, "utf8"),
+        system: readFileSync(role.systemPrompt, "utf8"),
       },
     };
   if (role.appendSystemPrompt !== undefined) {
-    if (major === 1) config["instructions"] = [role.appendSystemPrompt];
-    else {
-      if (appendPluginPath === undefined)
-        throw new RoleError("OpenCode 2 append plugin path is missing");
-      config["plugins"] = [appendPluginPath];
-    }
+    if (appendPluginPath === undefined)
+      throw new RoleError("OpenCode 2 append plugin path is missing");
+    config["plugins"] = [appendPluginPath];
   }
   if (role.skillsRoot !== undefined) {
-    config["skills"] = major === 1 ? { paths: [role.skillsRoot] } : [role.skillsRoot];
+    config["skills"] = [role.skillsRoot];
     const command = opencodeSkillCommands(role);
-    if (Object.keys(command).length > 0) config[major === 1 ? "command" : "commands"] = command;
+    if (Object.keys(command).length > 0) config["commands"] = command;
   }
   if (role.mcpServers !== undefined && role.mcpPath !== undefined) {
     const servers = toOpencodeMcpServers(role.mcpServers, role.mcpPath);
-    config["mcp"] = major === 1 ? servers : { servers };
+    config["mcp"] = { servers };
   }
   return Object.keys(config).length > 1 ? config : null;
 }
@@ -134,8 +121,8 @@ export function opencodeEnv(configPath: string | null): Record<string, string | 
 }
 
 /**
- * OpenCode loads skills from skills.paths, but the TUI slash menu skips
- * skill-sourced commands. `command` is the native control that shows `/name`.
+ * The TUI slash menu skips skill-sourced commands. `commands` is the
+ * native control that shows `/name`.
  */
 function opencodeSkillCommands(
   role: Role,

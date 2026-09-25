@@ -4,10 +4,10 @@ import { join } from "node:path";
 import { claudeArguments } from "../src/deliver/claude.ts";
 import { codexArguments, codexCommandIndex, codexOverrides } from "../src/deliver/codex.ts";
 import { fxArguments } from "../src/deliver/fx.ts";
-import { opencodeArguments, opencodeConfig, opencodeVersion } from "../src/deliver/opencode.ts";
+import { assertOpencodeV2, opencodeArguments, opencodeConfig } from "../src/deliver/opencode.ts";
 import { RoleError } from "../src/errors.ts";
 import { cacheHome } from "../src/paths.ts";
-import { renderDevinPlugin, renderOpencodeV2 } from "../src/render.ts";
+import { renderDevinPlugin, renderOpencode } from "../src/render.ts";
 import { loadRole } from "../src/role.ts";
 import { SKILL, sandbox } from "./fixtures/roles.ts";
 
@@ -64,48 +64,31 @@ describe("deliveries", () => {
       ]);
       expect(fxArguments(loadRole(s.role("empty")), [])).toEqual([]);
       expect(opencodeArguments(["run", "hi"])).toEqual(["run", "hi"]);
-      expect(opencodeConfig(role)).toEqual({
-        $schema: "https://opencode.ai/config.json",
-        instructions: [join(dir, "APPEND_SYSTEM_PROMPT.md")],
-        skills: { paths: [join(dir, "skills")] },
-        command: {
-          one: {
-            template: [
-              "Do the thing.",
-              "",
-              `Base directory for this skill: ${join(dir, "skills", "one")}`,
-              "Relative paths in this skill (e.g., scripts/, references/) are relative to this base directory.",
-            ].join("\n"),
-            description: "A test skill.",
-          },
-        },
-        mcp: { srv: { type: "local", command: ["srv"] } },
-      });
+      expect(() => opencodeConfig(role)).toThrow("append plugin path is missing");
       expect(opencodeConfig(replace)).toEqual({
         $schema: "https://opencode.ai/config.json",
-        agent: { build: { prompt: "x" } },
+        agents: { build: { system: "x" } },
       });
       expect(opencodeConfig(loadRole(s.role("empty")))).toBeNull();
-      expect(opencodeVersion(s.env)).toBe(1);
-      expect(opencodeVersion({ ...s.env, FAKE_OPENCODE_VERSION: "opencode v2.0.16" })).toBe(2);
-      expect(
-        opencodeVersion({ ...s.env, FAKE_OPENCODE_VERSION: "opencode v2.0.16" }, "opencode2"),
-      ).toBe(2);
-      expect(() => opencodeVersion({ ...s.env, FAKE_OPENCODE_VERSION: "opencode v3.0.0" })).toThrow(
-        "unsupported OpenCode version",
-      );
-      expect(opencodeArguments(["run", "hi"], 2, true)).toEqual(["run", "--standalone", "hi"]);
-      expect(opencodeArguments([], 2, true)).toEqual(["--standalone"]);
-      expect(() => opencodeArguments(["attach", "http://localhost:4096"], 2, true)).toThrow(
+      expect(() => assertOpencodeV2(s.env)).toThrow("unsupported OpenCode version");
+      expect(() =>
+        assertOpencodeV2({ ...s.env, FAKE_OPENCODE_VERSION: "opencode v2.0.16" }),
+      ).not.toThrow();
+      expect(() =>
+        assertOpencodeV2({ ...s.env, FAKE_OPENCODE_VERSION: "opencode v3.0.0" }),
+      ).toThrow("unsupported OpenCode version");
+      expect(opencodeArguments(["run", "hi"], true)).toEqual(["run", "--standalone", "hi"]);
+      expect(opencodeArguments([], true)).toEqual(["--standalone"]);
+      expect(() => opencodeArguments(["attach", "http://localhost:4096"], true)).toThrow(
         "separately running server",
       );
-      expect(() => opencodeArguments(["run", "--server=localhost:4096"], 2, true)).toThrow(
+      expect(() => opencodeArguments(["run", "--server=localhost:4096"], true)).toThrow(
         "separately running server",
       );
-      expect(() => opencodeArguments(["mcp", "list"], 2, true)).toThrow("utility command");
+      expect(() => opencodeArguments(["mcp", "list"], true)).toThrow("utility command");
 
-      const v2a = renderOpencodeV2(role, cacheHome(s.env, s.home));
-      const v2b = renderOpencodeV2(role, cacheHome(s.env, s.home));
+      const v2a = renderOpencode(role, cacheHome(s.env, s.home));
+      const v2b = renderOpencode(role, cacheHome(s.env, s.home));
       try {
         expect(v2a.path).not.toBe(v2b.path);
         const plugin = join(v2a.directory, "append");
@@ -113,16 +96,22 @@ describe("deliveries", () => {
           $schema: "https://opencode.ai/config.json",
           plugins: [plugin],
           skills: [join(dir, "skills")],
-          commands: opencodeConfig(role)?.["command"],
+          commands: {
+            one: {
+              template: [
+                "Do the thing.",
+                "",
+                `Base directory for this skill: ${join(dir, "skills", "one")}`,
+                "Relative paths in this skill (e.g., scripts/, references/) are relative to this base directory.",
+              ].join("\n"),
+              description: "A test skill.",
+            },
+          },
           mcp: { servers: { srv: { type: "local", command: ["srv"] } } },
         });
         expect(readFileSync(join(plugin, "index.ts"), "utf8")).toContain(
           'event.system.push({ type: "text", text: "a" })',
         );
-        expect(opencodeConfig(replace, 2)).toEqual({
-          $schema: "https://opencode.ai/config.json",
-          agents: { build: { system: "x" } },
-        });
       } finally {
         rmSync(v2a.directory, { recursive: true, force: true });
         rmSync(v2b.directory, { recursive: true, force: true });
@@ -134,7 +123,7 @@ describe("deliveries", () => {
           "skills/bare/SKILL.md": "Just the body.\n",
         }),
       );
-      const commands = opencodeConfig(quoted)?.["command"] as Record<
+      const commands = opencodeConfig(quoted)?.["commands"] as Record<
         string,
         { description?: string }
       >;
