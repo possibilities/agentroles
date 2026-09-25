@@ -14,6 +14,7 @@ agentroles researcher -- claude -p "Summarize the papers in ./inbox"
 agentroles researcher -- codex exec "Summarize the papers in ./inbox"
 agentroles researcher -- fx
 agentroles researcher -- opencode run "Summarize the papers in ./inbox"
+agentroles researcher -- opencode2 run "Summarize the papers in ./inbox"
 ```
 
 ## The role directory
@@ -46,7 +47,8 @@ the role-name rule; each server has exactly one of `command` or `url`.
 | `mcp.json` | `--mcp-config <role>/mcp.json` | one `-c mcp_servers.<name>={...}` per server, `type` dropped and `headers` renamed `http_headers` (`sse` is rejected) | `--mcp-config <role>/mcp.json`; replaces `~/.fx/mcp.json` for that process (`mcpServers` is accepted as a profile alias) | `mcp` in V1, `mcp.servers` in V2; local commands and remote URLs translated |
 | `skills/` | `--plugin-dir` on a plugin rendered under `~/.cache/agentroles/claude/<name>/` on every launch; skills appear as `/<name>:<skill>` | `-c plugins.<name>@agentroles.enabled=true` on a plugin installed once by `agentroles install`; skills appear as `$<name>:<skill>` | `--skills-dir <role>/skills` when present; `--no-default-skills` for any role with a prompt, MCP config or skills, including roles without `skills/`; skills appear under their own names | V1 `skills.paths` and `command.<name>`; V2 `skills` and `commands.<name>` |
 
-OpenCode is detected by major version on launch. V1 keeps its cache-rendered
+Both `opencode` and `opencode2` are accepted; the selected command is detected
+by major version on launch. V1 keeps its cache-rendered
 `OPENCODE_CONFIG`. V2 renders a unique per-launch config and append plugin and
 starts a private `--standalone` server; `attach`, `--server` and utility commands
 cannot deliver a role to that private session. Both versions expose role skills

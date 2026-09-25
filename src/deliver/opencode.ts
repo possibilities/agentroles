@@ -11,8 +11,8 @@ const OPENCODE_DEFAULT_AGENT = "build";
 export type OpencodeMajor = 1 | 2;
 
 /** Probe the executable that PATH will launch, not npm's current dist-tag. */
-export function opencodeVersion(env: Environ): OpencodeMajor {
-  const binary = resolveBinary("opencode", env);
+export function opencodeVersion(env: Environ, name = "opencode"): OpencodeMajor {
+  const binary = resolveBinary(name, env);
   const result = Bun.spawnSync([binary, "--version"], {
     env: env as Record<string, string>,
     stdin: "ignore",

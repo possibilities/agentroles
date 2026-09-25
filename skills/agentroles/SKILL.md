@@ -5,7 +5,7 @@ description: Run Claude Code, Codex, Fx or OpenCode under a named role with the 
 
 # agentroles
 
-`agentroles <role> -- <claude|codex|fx|opencode> [args…]` runs the
+`agentroles <role> -- <claude|codex|fx|opencode|opencode2> [args…]` runs the
 harness with the role's skills, MCP servers and prompt files, and nothing else
 changed.
 `agentroles list` names the roles under `~/.config/agentroles` (or

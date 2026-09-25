@@ -29,7 +29,8 @@ accounts, workspaces or harness configuration beyond the four capabilities.
   rendering. Codex overrides follow `exec`/`review` and
   `resume <id>`. Fx flags go before the user's tokens, like Claude. OpenCode
   has no role prompt argv; it detects V1/V2, sets `OPENCODE_CONFIG` to a
-  cache-rendered JSON, and uses a private V2 server for nonempty roles. See
+  cache-rendered JSON, and uses a private V2 server for nonempty roles. It
+  also accepts AgentStart's side-by-side `opencode2` command. See
   [ADR 0007](docs/adr/0007-deliver-roles-to-both-opencode-majors.md).
 - `src/mcp.ts`, `src/toml.ts`: `.mcp.json` parsing and the Codex/OpenCode
   translations; TOML rendering that Codex's `-c` parser accepts verbatim.

@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { UsageError } from "../src/errors.ts";
-import { main, parseCommand } from "../src/main.ts";
+import { harnessOf, main, parseCommand } from "../src/main.ts";
 import { SKILL, sandbox } from "./fixtures/roles.ts";
 
 function capture() {
@@ -49,6 +49,7 @@ describe("command grammar", () => {
       role: "r",
       command: ["claude", "-p", "x"],
     });
+    expect(harnessOf(["opencode2", "run"])).toBe("opencode");
     for (const argv of [
       ["r"],
       ["r", "claude"],
@@ -142,6 +143,18 @@ describe("main", () => {
       ).toBe(0);
       const v2Log = readFileSync(s.env["FAKE_HARNESS_LOG"]!, "utf8").split("\n");
       expect(v2Log.slice(0, 4)).toEqual(["fake-harness", "run", "--standalone", "hi"]);
+      expect(
+        await main(["r", "--", "opencode2", "run", "hi"], {
+          ...s.env,
+          FAKE_OPENCODE_VERSION: "opencode v2.0.16",
+        }),
+      ).toBe(0);
+      expect(readFileSync(s.env["FAKE_HARNESS_LOG"]!, "utf8").split("\n").slice(0, 4)).toEqual([
+        "fake-harness",
+        "run",
+        "--standalone",
+        "hi",
+      ]);
       const v2ConfigPath = v2Log.find((line) => line.startsWith("OPENCODE_CONFIG="))?.slice(16);
       expect(v2ConfigPath).toContain("/opencode/r/launch-");
       expect(existsSync(v2ConfigPath!)).toBe(false);

@@ -88,6 +88,9 @@ describe("deliveries", () => {
       expect(opencodeConfig(loadRole(s.role("empty")))).toBeNull();
       expect(opencodeVersion(s.env)).toBe(1);
       expect(opencodeVersion({ ...s.env, FAKE_OPENCODE_VERSION: "opencode v2.0.16" })).toBe(2);
+      expect(
+        opencodeVersion({ ...s.env, FAKE_OPENCODE_VERSION: "opencode v2.0.16" }, "opencode2"),
+      ).toBe(2);
       expect(() => opencodeVersion({ ...s.env, FAKE_OPENCODE_VERSION: "opencode v3.0.0" })).toThrow(
         "unsupported OpenCode version",
       );

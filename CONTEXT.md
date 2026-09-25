@@ -7,7 +7,8 @@ path. Not an identity, account, workspace, or session. _Avoid_: capability,
 overlay, profile, preset.
 
 **Harness** — A program that runs an agent and that a role is delivered to:
-Claude Code (`claude`), the Codex CLI (`codex`), Fx (`fx`), or OpenCode (`opencode`).
+Claude Code (`claude`), the Codex CLI (`codex`), Fx (`fx`), or OpenCode
+(`opencode` or the side-by-side `opencode2`).
 _Avoid_: backend, provider.
 
 **Delivery** — The harness-specific rendering of a role into native process
