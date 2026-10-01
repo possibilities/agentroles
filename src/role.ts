@@ -5,11 +5,13 @@
  *   SYSTEM_PROMPT.md | APPEND_SYSTEM_PROMPT.md       the agent's prompt
  *   skills/<name>/SKILL.md                            skills
  *   mcp.json                                          MCP servers (.mcp.json shape)
+ *   monitors.json                                     Claude plugin monitors array
  */
 import { existsSync, lstatSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { basename, isAbsolute, join, resolve } from "node:path";
 import { RoleError } from "./errors.ts";
 import { type McpServers, parseMcpServers } from "./mcp.ts";
+import { type Monitor, parseMonitors } from "./monitors.ts";
 import { type Environ, expandTilde, rolesHome } from "./paths.ts";
 
 /** Names survive as unquoted Codex config key segments and plugin ids. */
@@ -22,6 +24,7 @@ export const PROMPT_FILES = {
 } as const;
 
 export const MCP_FILE = "mcp.json";
+export const MONITORS_FILE = "monitors.json";
 export const SKILLS_DIR = "skills";
 
 export interface Role {
@@ -34,6 +37,7 @@ export interface Role {
   skillNames: string[];
   mcpPath?: string;
   mcpServers?: McpServers;
+  monitors?: Monitor[];
 }
 
 /** A path when it looks like one; otherwise a name under the roles home. */
@@ -124,6 +128,9 @@ export function loadRole(dir: string): Role {
     role.mcpPath = mcpPath;
     role.mcpServers = parseMcpServers(readFileSync(mcpPath, "utf8"), mcpPath);
   }
+  const monitorsPath = presentFile(join(dir, MONITORS_FILE), MONITORS_FILE);
+  if (monitorsPath !== undefined)
+    role.monitors = parseMonitors(readFileSync(monitorsPath, "utf8"), monitorsPath);
   return role;
 }
 

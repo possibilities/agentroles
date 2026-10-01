@@ -2,6 +2,8 @@
 
 Accepted September 24, 2026. Supersedes [ADR 0007](0007-deliver-roles-to-both-opencode-majors.md)
 after AgentStart's default-command cutover.
+Extended by [ADR 0009](0009-native-monitors-and-invocation-correlation.md): ACP
+owns its private server intrinsically, so it needs no added `--standalone` flag.
 
 `opencode` must report major version 2 before AgentRoles launches any role.
 The `opencode2` command and V1 configuration mapping are retired. For nonempty

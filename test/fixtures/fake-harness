@@ -9,4 +9,14 @@ printf '%s\n' "$@" >> "$FAKE_HARNESS_LOG"
 printf 'AGENTROLES_ROLE=%s\nAGENTROLES_NAME=%s\nOPENCODE_CONFIG=%s\n' \
   "${AGENTROLES_ROLE:-}" "${AGENTROLES_NAME:-}" \
   "${OPENCODE_CONFIG:-}" >> "$FAKE_HARNESS_LOG"
+if [ -n "${FAKE_HARNESS_PLUGIN_LOG:-}" ]; then
+  while [ "$#" -gt 0 ]; do
+    if [ "$1" = --plugin-dir ]; then
+      cp "$2/.claude-plugin/plugin.json" "$FAKE_HARNESS_PLUGIN_LOG"
+      test -f "$2/skills/one/SKILL.md" || exit 1
+      break
+    fi
+    shift
+  done
+fi
 exit "${FAKE_HARNESS_EXIT:-0}"

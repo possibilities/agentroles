@@ -30,8 +30,10 @@ export function assertOpencodeV2(env: Environ, name = "opencode"): void {
  */
 export function opencodeArguments(native: string[], hasRole = false): string[] {
   if (!hasRole) return native;
+  const index = opencodeCommandIndex(native);
+  const command = index === undefined ? undefined : native[index];
   if (
-    native[0] === "attach" ||
+    command === "attach" ||
     native.includes("--server") ||
     native.some((arg) => arg.startsWith("--server="))
   )
@@ -39,10 +41,11 @@ export function opencodeArguments(native: string[], hasRole = false): string[] {
       "OpenCode 2 cannot deliver a process-local role to a separately running server",
       "launch a local OpenCode 2 session without attach or --server",
     );
+  // ACP owns a private server intrinsically; its command has no --standalone flag.
+  if (command === "acp") return native;
   if (
-    native[0] !== undefined &&
+    command !== undefined &&
     [
-      "acp",
       "api",
       "auth",
       "completion",
@@ -61,17 +64,36 @@ export function opencodeArguments(native: string[], hasRole = false): string[] {
       "update",
       "upgrade",
       "web",
-    ].includes(native[0])
+    ].includes(command)
   )
     throw new RoleError(
-      `OpenCode 2 ${native[0]} is a utility command, not a role session`,
-      "run that utility directly, or use agentroles with opencode run, mini or the TUI",
+      `OpenCode 2 ${command} is a utility command, not a role session`,
+      "run that utility directly, or use agentroles with opencode acp, run, mini or the TUI",
     );
   if (native.includes("--standalone")) return native;
-  if (native[0] === "run" || native[0] === "mini")
-    return [native[0], "--standalone", ...native.slice(1)];
+  if ((command === "run" || command === "mini") && index !== undefined)
+    return [...native.slice(0, index + 1), "--standalone", ...native.slice(index + 1)];
   // Default TUI invocation: `opencode [flags] [directory]`.
   return ["--standalone", ...native];
+}
+
+/** Skip leading native root/global options, not prompt or directory values. */
+function opencodeCommandIndex(native: string[]): number | undefined {
+  const valueOptions = new Set([
+    "--log-level",
+    "--completions",
+    "--server",
+    "--session",
+    "-s",
+    "--prompt",
+  ]);
+  for (let index = 0; index < native.length; index++) {
+    const arg = native[index]!;
+    if (arg === "--") return undefined;
+    if (!arg.startsWith("-")) return index;
+    if (valueOptions.has(arg)) index++;
+  }
+  return undefined;
 }
 
 /**

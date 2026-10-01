@@ -9,7 +9,7 @@ renders that harness's native arguments or env, and execs the harness through
 PATH.
 The role directory format is the contract; README.md is its canonical
 description and CONTEXT.md its vocabulary. Nothing here owns sessions,
-accounts, workspaces or harness configuration beyond the four capabilities.
+accounts, workspaces or harness configuration beyond the five capabilities.
 
 ## Commands
 
@@ -24,15 +24,18 @@ accounts, workspaces or harness configuration beyond the four capabilities.
 
 - `src/main.ts`: command grammar, `deliver()` (harness → argv/env), exit codes.
 - `src/role.ts`: role resolution and loading; every validation a harness would
-  otherwise discover late (exclusive prompt files, skill layout, mcp.json shape).
+  otherwise discover late (exclusive prompt files, skill layout, mcp.json shape,
+  strict native monitors array).
 - `src/deliver/{claude,codex,fx,opencode}.ts`: pure argv or env
   rendering. Codex overrides follow `exec`/`review` and
   `resume <id>`. Fx flags go before the user's tokens, like Claude. OpenCode
   has no role prompt argv; it requires V2, sets `OPENCODE_CONFIG` to a
-  cache-rendered JSON, and uses a private server for nonempty roles. See
+  cache-rendered JSON, and uses a private server for nonempty roles (ACP owns
+  one intrinsically). See
   [ADR 0008](docs/adr/0008-opencode-2-only-role-delivery.md).
 - `src/mcp.ts`, `src/toml.ts`: `.mcp.json` parsing and the Codex/OpenCode
   translations; TOML rendering that Codex's `-c` parser accepts verbatim.
+- `src/monitors.ts`: Claude's strict native plugin monitors validation.
 - `src/render.ts`: cache-rendered Claude plugin, Codex marketplace, OpenCode
   config and append plugin, and Devin plugin; always regenerated, never edited in place.
 - `src/codex-plugin.ts`, `src/app-server.ts`: `install` through Codex's own
@@ -54,6 +57,9 @@ accounts, workspaces or harness configuration beyond the four capabilities.
 - The harness runs through PATH so fleet shims keep their policy; do not
   bypass them.
 - `AGENTROLES_ROLE` and `AGENTROLES_NAME` remain available to role-aware skills.
+- Each run replaces inherited `AGENTROLES_INVOCATION_ID` with a fresh UUID and
+  sets `AGENTROLES_HARNESS`. These correlate an invocation, not session/account
+  state; `show` and `install` allocate neither.
 - Role and MCP server names stay within `[A-Za-z0-9][A-Za-z0-9_-]*`; they are
   unquoted Codex key segments and plugin ids.
 

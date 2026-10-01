@@ -1,7 +1,6 @@
 /**
- * Claude Code takes skills only as a plugin directory, so the role's skills
- * are rendered into one under the cache on every launch: a manifest naming
- * the role plus a fresh copy of skills/. Regenerated, never edited in place.
+ * Claude Code takes skills and monitors through a plugin directory. Each launch
+ * owns its cache copy so another launch or show cannot replace a live plugin.
  */
 import {
   copyFileSync,
@@ -23,20 +22,28 @@ export function claudePluginManifest(role: Role): Record<string, unknown> {
     version: "0.0.0",
     description: `agentroles role ${role.name} (${role.dir})`,
     author: { name: "agentroles" },
+    ...(role.monitors === undefined ? {} : { experimental: { monitors: role.monitors } }),
   };
 }
 
-export function renderClaudePlugin(role: Role, cacheRoot: string): string {
-  const target = join(cacheRoot, "claude", role.name);
-  rmSync(target, { recursive: true, force: true });
-  mkdirSync(join(target, ".claude-plugin"), { recursive: true });
-  writeFileSync(
-    join(target, ".claude-plugin", "plugin.json"),
-    `${JSON.stringify(claudePluginManifest(role), null, 2)}\n`,
-  );
-  if (role.skillsRoot !== undefined)
-    cpSync(role.skillsRoot, join(target, "skills"), { recursive: true, dereference: true });
-  return target;
+export function renderClaudePlugin(role: Role, cacheRoot: string, launch = false): string {
+  const root = join(cacheRoot, "claude", role.name);
+  mkdirSync(root, { recursive: true });
+  const target = launch ? mkdtempSync(join(root, "launch-")) : join(root, "show");
+  if (!launch) rmSync(target, { recursive: true, force: true });
+  try {
+    mkdirSync(join(target, ".claude-plugin"), { recursive: true });
+    writeFileSync(
+      join(target, ".claude-plugin", "plugin.json"),
+      `${JSON.stringify(claudePluginManifest(role), null, 2)}\n`,
+    );
+    if (role.skillsRoot !== undefined)
+      cpSync(role.skillsRoot, join(target, "skills"), { recursive: true, dereference: true });
+    return target;
+  } catch (error) {
+    rmSync(target, { recursive: true, force: true });
+    throw error;
+  }
 }
 
 /**

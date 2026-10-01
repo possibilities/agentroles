@@ -3,6 +3,7 @@
  * agentroles: give one harness invocation a role. The role directory is the
  * contract (README); this file only routes commands and renders arguments.
  */
+import { randomUUID } from "node:crypto";
 import { rmSync } from "node:fs";
 import { homedir } from "node:os";
 import { basename } from "node:path";
@@ -25,8 +26,8 @@ export type Harness = (typeof HARNESSES)[number];
 export const HELP = `agentroles ${VERSION}
 
 Give Claude Code, Codex, Fx or OpenCode a role for one invocation:
-the role directory's skills, MCP servers and prompt files apply to that process
-only.
+the role directory's skills, MCP servers, prompt files and Claude monitors apply
+to that process only.
 
 Usage:
   agentroles <role> -- <claude|codex|fx|opencode> [harness arguments...]
@@ -42,6 +43,7 @@ directory path. A role directory holds any of:
   SYSTEM_PROMPT.md | APPEND_SYSTEM_PROMPT.md     the agent's prompt (one or the other)
   skills/<name>/SKILL.md                          skills
   mcp.json                                        MCP servers, .mcp.json shape
+  monitors.json                                   Claude plugin monitors array
 
 The harness runs through PATH, so fleet shims still apply. Its exit code is
 returned unchanged. For install --check, 0 means fresh and 1 means absent or stale.
@@ -115,14 +117,26 @@ export interface Delivery {
 }
 
 /** Renders the full command; Claude and OpenCode write cache files before launch. */
-export function deliver(role: Role, command: string[], env: Environ, home: string): Delivery {
+export function deliver(
+  role: Role,
+  command: string[],
+  env: Environ,
+  home: string,
+  launch = false,
+): Delivery {
   const harness = harnessOf(command);
   const [bin, ...native] = command as [string, ...string[]];
   switch (harness) {
     case "claude": {
       const pluginDir =
-        role.skillNames.length > 0 ? renderClaudePlugin(role, cacheHome(env, home)) : null;
-      return { harness, command: [bin, ...claudeArguments(role, pluginDir, native)] };
+        role.skillNames.length > 0 || role.monitors !== undefined
+          ? renderClaudePlugin(role, cacheHome(env, home), launch)
+          : null;
+      return {
+        harness,
+        command: [bin, ...claudeArguments(role, pluginDir, native)],
+        ...(launch && pluginDir !== null ? { cleanup: pluginDir } : {}),
+      };
     }
     case "codex": {
       const overrides = codexOverrides(role, codexPluginInstalled(role, env, home));
@@ -160,6 +174,9 @@ function describe(role: Role, env: Environ, home: string): string {
   lines.push(`  skills: ${role.skillNames.length > 0 ? role.skillNames.join(", ") : "none"}`);
   lines.push(
     `  mcp servers: ${role.mcpServers ? Object.keys(role.mcpServers).join(", ") : "none"}`,
+  );
+  lines.push(
+    `  monitors (Claude only): ${role.monitors?.map((monitor) => monitor.name).join(", ") || "none"}`,
   );
   if (role.skillNames.length > 0)
     lines.push(
@@ -248,9 +265,13 @@ export async function main(argv: string[], env: Environ = process.env): Promise<
       case "run": {
         const role = load(command.role!, env, home);
         if (harnessOf(command.command!) === "opencode") assertOpencodeV2(env, command.command![0]);
-        const delivery = deliver(role, command.command!, env, home);
+        const delivery = deliver(role, command.command!, env, home, true);
         try {
-          return await runHarness(role, delivery.command, env, delivery.env ?? {});
+          return await runHarness(role, delivery.command, env, {
+            ...delivery.env,
+            AGENTROLES_INVOCATION_ID: randomUUID(),
+            AGENTROLES_HARNESS: delivery.harness,
+          });
         } finally {
           if (delivery.cleanup) rmSync(delivery.cleanup, { recursive: true, force: true });
         }

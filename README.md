@@ -3,8 +3,8 @@
 # agentroles
 
 Give Claude Code, Codex, Fx or OpenCode a role for one invocation. A
-role is a directory of skills, MCP servers and prompt files; `agentroles`
-delivers it to the harness you name by that harness's native process controls
+role is a directory of skills, MCP servers, prompt files and Claude monitors;
+`agentroles` delivers it to the harness you name by that harness's native process controls
 and runs that harness. Nothing in the role touches global harness state, the
 account, the workspace or session history, and two shells can run two roles
 side by side.
@@ -14,6 +14,7 @@ agentroles researcher -- claude -p "Summarize the papers in ./inbox"
 agentroles researcher -- codex exec "Summarize the papers in ./inbox"
 agentroles researcher -- fx
 agentroles researcher -- opencode run "Summarize the papers in ./inbox"
+agentroles researcher -- opencode acp
 ```
 
 ## The role directory
@@ -30,12 +31,21 @@ control of the harness it reaches; there is no agentroles-specific overlay.
 | `APPEND_SYSTEM_PROMPT.md` | Appends to the agent's default system prompt |
 | `skills/<name>/SKILL.md` | Skills, one directory each, with the usual `name`/`description` frontmatter |
 | `mcp.json` | MCP servers in Claude Code's `.mcp.json` shape: `{"mcpServers": {"<name>": {...}}}` |
+| `monitors.json` | Claude Code's native plugin monitors array |
 
 A replacement and an append for the same agent cannot both be present; the
 role fails to load. A file that exists but cannot be read (a broken link, a
 directory, no permission) fails the same way, before any harness starts.
 `skills/` may contain only skill directories. `mcp.json` server names follow
 the role-name rule; each server has exactly one of `command` or `url`.
+
+`monitors.json` is an array of strict objects with string `name`, `command` and
+`description`, and optional `when` (`"always"`, the default, or
+`"on-skill-invoke:<skill>"`). Duplicate names, unknown fields and invalid or
+unreadable files fail before launch. Commands remain unchanged, including native
+`${HOME}` and `${CLAUDE_PLUGIN_ROOT}` references; the latter names the rendered
+plugin root, not the role directory. Claude rejects `${user_config.*}` in monitor
+commands, so AgentRoles rejects those before launch too.
 
 ## What each harness receives
 
@@ -44,13 +54,24 @@ the role-name rule; each server has exactly one of `command` or `url`.
 | `SYSTEM_PROMPT.md` | `--system-prompt-file` | `-c model_instructions_file=<path>` | `--system-prompt-file` | `agents.build.system` |
 | `APPEND_SYSTEM_PROMPT.md` | `--append-system-prompt-file` | `-c developer_instructions="<text>"` (Codex's developer message after its base prompt) | `--append-system-prompt-file` | per-launch plugin appends to the assembled system instructions |
 | `mcp.json` | `--mcp-config <role>/mcp.json` | one `-c mcp_servers.<name>={...}` per server, `type` dropped and `headers` renamed `http_headers` (`sse` is rejected) | `--mcp-config <role>/mcp.json`; replaces `~/.fx/mcp.json` for that process (`mcpServers` is accepted as a profile alias) | `mcp.servers`; local commands and remote URLs translated |
-| `skills/` | `--plugin-dir` on a plugin rendered under `~/.cache/agentroles/claude/<name>/` on every launch; skills appear as `/<name>:<skill>` | `-c plugins.<name>@agentroles.enabled=true` on a plugin installed once by `agentroles install`; skills appear as `$<name>:<skill>` | `--skills-dir <role>/skills` when present; `--no-default-skills` for any role with a prompt, MCP config or skills, including roles without `skills/`; skills appear under their own names | `skills` and `commands.<name>` |
+| `skills/` | `--plugin-dir` on a unique plugin under `~/.cache/agentroles/claude/<name>/launch-*/`; skills appear as `/<name>:<skill>` | `-c plugins.<name>@agentroles.enabled=true` on a plugin installed once by `agentroles install`; skills appear as `$<name>:<skill>` | `--skills-dir <role>/skills` when present; `--no-default-skills` for any role with a prompt, MCP config or skills, including roles without `skills/`; skills appear under their own names | `skills` and `commands.<name>` |
+| `monitors.json` | `experimental.monitors` inline in that session's `--plugin-dir` manifest, even without skills | ignored | ignored | ignored |
+
+Claude starts plugin monitors at interactive session start and plugin reload (or
+the first named skill invocation with `when`); stdout lines become notifications.
+They do not run with `-p` or when the Monitor tool is unavailable or disabled.
+AgentRoles does not start monitors itself or emulate them on other harnesses.
+See Claude's [manifest reference](https://code.claude.com/docs/en/plugins/manifest-reference#monitors)
+and [runtime limits](https://code.claude.com/docs/en/plugins/components#monitors).
 
 `opencode` must resolve to OpenCode 2; V1 and the `opencode2` command are not
 supported. AgentRoles renders a unique per-launch config and append plugin and
-starts a private `--standalone` server; `attach`, `--server` and utility commands
-cannot deliver a role to that private session. OpenCode exposes role skills
-as native slash commands. A project config may still override role keys;
+starts a private `--standalone` server for the TUI, `run` and `mini`.
+`opencode acp` already owns a private server and receives the same native role
+config without an added flag; it serves ACP over stdio until stdin closes.
+`attach`, `--server` and utility commands cannot deliver a role to that private
+session. OpenCode exposes role skills as native slash commands. A project config
+may still override role keys;
 `--agent plan` selects `plan`, whose prompt is not replaced.
 
 The harness is found on `PATH`, so installed permission shims still apply.
@@ -60,6 +81,14 @@ go after `exec`/`review` or `resume <id>` and before other arguments. Fx flags
 go before the user's tokens, like Claude's. The child also receives
 `AGENTROLES_ROLE=<dir>` and `AGENTROLES_NAME=<name>` in its environment, and
 its exit code is agentroles' exit code.
+
+Every role **run**, including an empty role, also receives a fresh UUID in
+`AGENTROLES_INVOCATION_ID` and the selected harness name in `AGENTROLES_HARNESS`.
+The harness's MCP servers, monitors and other subprocesses inherit these values
+unless native configuration overrides them. This correlates one invocation,
+not a durable session, account or authorization. Concurrent runs from the same
+directory differ; a nested AgentRoles run always gets its own ID and harness,
+never the parent's. `show` and `install` do not allocate an invocation ID.
 
 The installed Codex from codexnk carries `--identity`, `--capabilities` and
 `--history-dir` for **app-server** launches, plus opt-in per-thread input
@@ -162,7 +191,13 @@ reason and, where one exists, the fix.
   `~/.claude`/`~/.agents` skills; there is no exclusive skill-root flag.
   `OPENCODE_CONFIG` is merged before project config, so a project
   `opencode.json` can override the role, including a same-name `command`.
-- Harness configuration beyond these four capabilities (models, permissions,
+  Claude's launch copy is removed after its child exits; `show` renders a
+  separate preview copy without replacing a live launch's files.
+- Monitors are Claude-only, experimental and interactive-only. Codex, Fx,
+  OpenCode and Devin installs ignore them. Claude also excludes monitors on
+  Amazon Bedrock, Google Cloud's Agent Platform and Microsoft Foundry. A
+  rendered manifest proves delivery, not that the Monitor tool is enabled.
+- Harness configuration beyond these five capabilities (models, permissions,
   extra flags) is not part of a role yet.
 
 ## Development

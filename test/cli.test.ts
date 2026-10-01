@@ -1,5 +1,13 @@
 import { describe, expect, test } from "bun:test";
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+  chmodSync,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from "node:fs";
 import { join } from "node:path";
 import { UsageError } from "../src/errors.ts";
 import { harnessOf, main, parseCommand } from "../src/main.ts";
@@ -67,6 +75,59 @@ describe("command grammar", () => {
 });
 
 describe("main", () => {
+  test("invalid native monitors fail before any harness launch", async () => {
+    const s = sandbox();
+    const c = capture();
+    try {
+      const valid = { name: "completion", command: "bridge monitor", description: "Completions" };
+      const cases: Array<[unknown, string]> = [
+        [null, "expected a monitors array"],
+        [{ monitors: [valid] }, "expected a monitors array"],
+        [[null], "must be an object"],
+        [[{ ...valid, name: 1 }], "name must be a string"],
+        [[{ ...valid, command: null }], "command must be a string"],
+        [[{ name: "completion", command: "bridge monitor" }], "description must be a string"],
+        [[{ ...valid, extra: true }], 'unknown field "extra"'],
+        [[{ ...valid, when: "sometimes" }], "when must be"],
+        [[{ ...valid, when: "on-skill-invoke:" }], "when must be"],
+        [[{ ...valid, when: 1 }], "when must be"],
+        [[valid, valid], "duplicate monitor name"],
+        [[{ ...valid, command: `echo \${user_config.token}` }], "cannot reference"],
+      ];
+      for (const [entries, message] of cases) {
+        s.role("invalid", { "monitors.json": JSON.stringify(entries) });
+        expect(await main(["invalid", "--", "claude"], s.env)).toBe(1);
+        expect(c.err.at(-1)).toContain(message);
+        expect(existsSync(s.env["FAKE_HARNESS_LOG"]!)).toBe(false);
+      }
+      s.role("invalid", { "monitors.json": "[" });
+      expect(await main(["invalid", "--", "claude"], s.env)).toBe(1);
+      expect(c.err.at(-1)).toContain("not valid JSON");
+      const broken = s.role("broken-monitor");
+      symlinkSync(join(broken, "missing"), join(broken, "monitors.json"));
+      const directory = s.role("directory-monitor");
+      mkdirSync(join(directory, "monitors.json"));
+      for (const role of ["broken-monitor", "directory-monitor"]) {
+        expect(await main([role, "--", "claude"], s.env)).toBe(1);
+        expect(c.err.at(-1)).toContain("monitors.json: cannot read");
+      }
+      if (process.getuid?.() !== 0) {
+        const unreadable = s.role("unreadable-monitor", { "monitors.json": "[]" });
+        chmodSync(join(unreadable, "monitors.json"), 0o000);
+        try {
+          expect(await main(["unreadable-monitor", "--", "claude"], s.env)).toBe(1);
+          expect(c.err.at(-1)).toContain("monitors.json: cannot read");
+        } finally {
+          chmodSync(join(unreadable, "monitors.json"), 0o600);
+        }
+      }
+      expect(existsSync(s.env["FAKE_HARNESS_LOG"]!)).toBe(false);
+    } finally {
+      c.restore();
+      s.cleanup();
+    }
+  });
+
   test("runs the harness through PATH with rendered arguments and passes its exit code back", async () => {
     const s = sandbox();
     const c = capture();
@@ -76,9 +137,16 @@ describe("main", () => {
         "skills/one/SKILL.md": SKILL,
         "mcp.json": JSON.stringify({ mcpServers: { srv: { command: "srv" } } }),
       });
-      expect(await main(["r", "--", "claude", "-p", "hi"], s.env)).toBe(0);
+      const pluginLog = join(s.home, "plugin.json");
+      expect(
+        await main(["r", "--", "claude", "-p", "hi"], {
+          ...s.env,
+          FAKE_HARNESS_PLUGIN_LOG: pluginLog,
+        }),
+      ).toBe(0);
       const log = readFileSync(s.env["FAKE_HARNESS_LOG"]!, "utf8").split("\n");
-      const pluginDir = join(s.home, ".cache", "agentroles", "claude", "r");
+      const pluginDir = log[6]!;
+      expect(pluginDir).toStartWith(join(s.home, ".cache", "agentroles", "claude", "r", "launch-"));
       expect(log.slice(0, 8)).toEqual([
         "fake-harness",
         "--append-system-prompt-file",
@@ -91,8 +159,8 @@ describe("main", () => {
       ]);
       expect(log).toContain(`AGENTROLES_ROLE=${dir}`);
       expect(log).toContain("AGENTROLES_NAME=r");
-      expect(existsSync(join(pluginDir, ".claude-plugin", "plugin.json"))).toBe(true);
-      expect(existsSync(join(pluginDir, "skills", "one", "SKILL.md"))).toBe(true);
+      expect(JSON.parse(readFileSync(pluginLog, "utf8")).name).toBe("r");
+      expect(existsSync(pluginDir)).toBe(false);
 
       expect(await main(["r", "--", "fx"], s.env)).toBe(0);
       expect(readFileSync(s.env["FAKE_HARNESS_LOG"]!, "utf8").split("\n").slice(0, 8)).toEqual([
