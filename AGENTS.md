@@ -8,7 +8,7 @@ One CLI that gives a harness invocation a role: it loads a role directory,
 renders that harness's native arguments or env, and execs the harness through
 PATH.
 The role directory format is the contract; README.md is its canonical
-description and CONTEXT.md its vocabulary. Nothing here owns sessions,
+description and GLOSSARY.md its vocabulary. Nothing here owns sessions,
 accounts, workspaces or harness configuration beyond the four capabilities.
 
 ## Commands
