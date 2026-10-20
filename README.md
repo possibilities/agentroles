@@ -90,11 +90,10 @@ not a durable session, account or authorization. Concurrent runs from the same
 directory differ; a nested AgentRoles run always gets its own ID and harness,
 never the parent's. `show` and `install` do not allocate an invocation ID.
 
-The installed Codex from codexnk carries `--identity`, `--capabilities` and
-`--history-dir` for **app-server** launches, plus opt-in per-thread input
-middleware. Those are not Codex CLI role controls. The role's CLI `-c` overrides
-select an embedded TUI server instead of borrowing a shared daemon that cannot
-adopt process-local configuration. Fx's carried `--shape`, `--identity` and
+Codex role delivery uses the official CLI's native `-c` overrides and installed
+plugin controls; it needs no fork installation. The role's CLI overrides select
+an embedded TUI server instead of borrowing a shared daemon that cannot adopt
+process-local configuration. Fx's carried `--shape`, `--identity` and
 `--history-dir` controls split behavior, credentials and history, but a role
 already supplies its three resources through direct invocation flags. Fx keeps
 the user's account and session selections, and user-supplied launch flags remain

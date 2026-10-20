@@ -3,6 +3,10 @@
 Accepted 2026-09-24. Narrows [ADR 0001](0001-roles-are-directories-delivered-by-argv.md)
 and [ADR 0002](0002-explicit-roles-own-their-resources.md).
 
+October 20, 2026: AgentStart switched its terminal Codex binding to the official
+installation. AgentRoles' direct native CLI controls require no fork. The Codex
+fork context below is historical; Role delivery and Fx behavior remain unchanged.
+
 The codexnk fork's invocation axes (`--identity`, `--capabilities`,
 `--history-dir`) and input middleware exist on the app-server, not the Codex
 CLI. AgentRoles still launches the CLI through PATH with its prompt and MCP
