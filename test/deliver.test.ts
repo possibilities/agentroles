@@ -3,7 +3,6 @@ import { existsSync, readFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { claudeArguments } from "../src/deliver/claude.ts";
 import { codexArguments, codexCommandIndex, codexOverrides } from "../src/deliver/codex.ts";
-import { fxArguments } from "../src/deliver/fx.ts";
 import { assertOpencodeV2, opencodeArguments, opencodeConfig } from "../src/deliver/opencode.ts";
 import { RoleError } from "../src/errors.ts";
 import { cacheHome } from "../src/paths.ts";
@@ -36,33 +35,6 @@ describe("deliveries", () => {
         "--system-prompt-file",
         join(s.roles, "s", "SYSTEM_PROMPT.md"),
       ]);
-      expect(fxArguments(role, ["ask", "hi"])).toEqual([
-        "--append-system-prompt-file",
-        join(dir, "APPEND_SYSTEM_PROMPT.md"),
-        "--mcp-config",
-        join(dir, "mcp.json"),
-        "--skills-dir",
-        join(dir, "skills"),
-        "--no-default-skills",
-        "ask",
-        "hi",
-      ]);
-      expect(fxArguments(replace, [])).toEqual([
-        "--system-prompt-file",
-        join(s.roles, "s", "SYSTEM_PROMPT.md"),
-        "--no-default-skills",
-      ]);
-      expect(
-        fxArguments(loadRole(s.role("mcp-only", { "mcp.json": '{"mcpServers":{}}' })), []),
-      ).toEqual(["--mcp-config", join(s.roles, "mcp-only", "mcp.json"), "--no-default-skills"]);
-      expect(fxArguments(replace, ["--no-default-skills", "ask", "hi"])).toEqual([
-        "--system-prompt-file",
-        join(s.roles, "s", "SYSTEM_PROMPT.md"),
-        "--no-default-skills",
-        "ask",
-        "hi",
-      ]);
-      expect(fxArguments(loadRole(s.role("empty")), [])).toEqual([]);
       expect(opencodeArguments(["run", "hi"])).toEqual(["run", "hi"]);
       expect(() => opencodeConfig(role)).toThrow("append plugin path is missing");
       expect(opencodeConfig(replace)).toEqual({

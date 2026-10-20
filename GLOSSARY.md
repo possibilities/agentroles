@@ -7,16 +7,14 @@ account, workspace, or session. _Avoid_: capability,
 overlay, profile, preset.
 
 **Harness** — A program that runs an agent and that a role is delivered to:
-Claude Code (`claude`), the Codex CLI (`codex`), Fx (`fx`), or OpenCode 2
+Claude Code (`claude`), the Codex CLI (`codex`), or OpenCode 2
 (`opencode`).
 _Avoid_: backend, provider.
 
 **Delivery** — The harness-specific rendering of a role into native process
 controls (argv, and for OpenCode `OPENCODE_CONFIG`), followed by running the
 harness through PATH. For direct Claude/Codex delivery, the role supplies its
-native skill and MCP arguments. Fx receives the
-same native prompt and MCP flags as Claude, plus `--skills-dir` when present
-and `--no-default-skills` for any nonempty role. OpenCode receives a
+native skill and MCP arguments. OpenCode receives a
 cache-rendered `opencode.json` via `OPENCODE_CONFIG`. OpenCode 2 uses a
 private server and a native plugin hook for
 append prompts. _Avoid_: injection, mangling.

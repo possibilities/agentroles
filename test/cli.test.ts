@@ -162,17 +162,9 @@ describe("main", () => {
       expect(JSON.parse(readFileSync(pluginLog, "utf8")).name).toBe("r");
       expect(existsSync(pluginDir)).toBe(false);
 
-      expect(await main(["r", "--", "fx"], s.env)).toBe(0);
-      expect(readFileSync(s.env["FAKE_HARNESS_LOG"]!, "utf8").split("\n").slice(0, 8)).toEqual([
-        "fake-harness",
-        "--append-system-prompt-file",
-        join(dir, "APPEND_SYSTEM_PROMPT.md"),
-        "--mcp-config",
-        join(dir, "mcp.json"),
-        "--skills-dir",
-        join(dir, "skills"),
-        "--no-default-skills",
-      ]);
+      const beforeFx = readFileSync(s.env["FAKE_HARNESS_LOG"]!, "utf8");
+      expect(await main(["r", "--", "fx"], s.env)).toBe(1);
+      expect(readFileSync(s.env["FAKE_HARNESS_LOG"]!, "utf8")).toBe(beforeFx);
 
       expect(
         await main(["r", "--", "opencode", "run", "hi"], {
@@ -485,8 +477,7 @@ describe("main", () => {
       expect(shown).toContain("not installed (agentroles install --devin)");
       expect(shown).toContain("codex: role a has skills but its Codex plugin");
       expect(shown).not.toContain("agentvoice:");
-      expect(shown).toContain("fx: --skills-dir");
-      expect(shown).toContain("--no-default-skills");
+      expect(shown).not.toContain("fx:");
       expect(shown).toContain("opencode: OPENCODE_CONFIG=");
       expect(existsSync(s.env["FAKE_HARNESS_LOG"]!)).toBe(false);
       expect(await main(["--help"], s.env)).toBe(0);

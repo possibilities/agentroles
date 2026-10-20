@@ -26,9 +26,9 @@ accounts, workspaces or harness configuration beyond the five capabilities.
 - `src/role.ts`: role resolution and loading; every validation a harness would
   otherwise discover late (exclusive prompt files, skill layout, mcp.json shape,
   strict native monitors array).
-- `src/deliver/{claude,codex,fx,opencode}.ts`: pure argv or env
+- `src/deliver/{claude,codex,opencode}.ts`: pure argv or env
   rendering. Codex overrides follow `exec`/`review` and
-  `resume <id>`. Fx flags go before the user's tokens, like Claude. OpenCode
+  `resume <id>`. OpenCode
   has no role prompt argv; it requires V2, sets `OPENCODE_CONFIG` to a
   cache-rendered JSON, and uses a private server for nonempty roles (ACP owns
   one intrinsically). See
@@ -54,6 +54,8 @@ accounts, workspaces or harness configuration beyond the five capabilities.
   through Devin's plugin CLI, and that plugin stays enabled for every session.
 - Never set `skills.config` for Codex. An explicit role selects only its inert
   role plugin. Plugin-level enablement is the per-process role mechanism.
+- Official Fx has no supported per-invocation Role controls; launch it directly.
+  See [ADR 0010](docs/adr/0010-retire-fork-only-fx-delivery.md).
 - The harness runs through PATH so fleet shims keep their policy; do not
   bypass them.
 - `AGENTROLES_ROLE` and `AGENTROLES_NAME` remain available to role-aware skills.
@@ -68,6 +70,6 @@ accounts, workspaces or harness configuration beyond the five capabilities.
 This checkout is one of the agent* fleet under `~/code`. `skills/agentroles/`
 ships into AgentStart's fixed fleet resources through
 `~/code/agentstart/scripts/sync-skills`. Cross-tool calls (claude, codex,
-fx, opencode, and `devin plugins install`)
+opencode, and `devin plugins install`)
 belong in `~/code/agentstart/skills/fleet/MAP.md`; keep it current with any
 change here.

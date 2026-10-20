@@ -5,7 +5,8 @@ and [ADR 0002](0002-explicit-roles-own-their-resources.md).
 
 October 20, 2026: AgentStart switched its terminal Codex binding to the official
 installation. AgentRoles' direct native CLI controls require no fork. The Codex
-fork context below is historical; Role delivery and Fx behavior remain unchanged.
+fork context below is historical. Fx delivery was subsequently retired by
+[ADR 0010](0010-retire-fork-only-fx-delivery.md); its original reasoning remains below.
 
 The codexnk fork's invocation axes (`--identity`, `--capabilities`,
 `--history-dir`) and input middleware exist on the app-server, not the Codex

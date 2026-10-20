@@ -8,7 +8,7 @@ const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{1
 
 function sessionSandbox() {
   const s = sandbox();
-  for (const name of ["claude", "codex", "fx", "opencode"])
+  for (const name of ["claude", "codex", "opencode"])
     writeFileSync(
       join(s.home, "bin", name),
       `#!/bin/sh\nexec ${JSON.stringify(process.execPath)} ${JSON.stringify(join(import.meta.dir, "fixtures", "fake-session.ts"))} "$@"\n`,
@@ -162,7 +162,7 @@ test("every run replaces inherited correlation, including a nested native harnes
       ]),
     });
     const ids: string[] = [];
-    for (const harness of ["claude", "codex", "fx", "opencode"]) {
+    for (const harness of ["claude", "codex", "opencode"]) {
       const log = join(s.home, `${harness}.json`);
       const child = launch(
         {
@@ -181,7 +181,7 @@ test("every run replaces inherited correlation, including a nested native harnes
       if (harness !== "claude") expect(result.args).toEqual([]);
       ids.push(result.invocation);
     }
-    expect(new Set(ids).size).toBe(4);
+    expect(new Set(ids).size).toBe(3);
 
     const empty = s.role("empty");
     const emptyLog = join(s.home, "empty.json");

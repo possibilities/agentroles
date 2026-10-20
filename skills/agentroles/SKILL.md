@@ -1,11 +1,11 @@
 ---
 name: agentroles
-description: Run Claude Code, Codex, Fx or OpenCode under a named role with the agentroles CLI — a directory of skills, MCP servers, prompt files and Claude monitors applied to one invocation only. Use when a task should run "as the researcher role", when someone asks to give an agent skills, MCP servers or Claude plugin monitors without changing global configuration, or when creating or inspecting a role directory.
+description: Run Claude Code, Codex or OpenCode under a named role with the agentroles CLI — a directory of skills, MCP servers, prompt files and Claude monitors applied to one invocation only. Use when a task should run "as the researcher role", when someone asks to give an agent skills, MCP servers or Claude plugin monitors without changing global configuration, or when creating or inspecting a role directory.
 ---
 
 # agentroles
 
-`agentroles <role> -- <claude|codex|fx|opencode> [args…]` runs the
+`agentroles <role> -- <claude|codex|opencode> [args…]` runs the
 harness with the role's skills, MCP servers, prompt files and Claude monitors,
 and nothing else changed.
 `agentroles list` names the roles under `~/.config/agentroles` (or
@@ -34,6 +34,6 @@ Codex CLI skills need `agentroles install <role>` once per role and again
 after editing its skills. Before deciding whether to reinstall, run
 `agentroles install --check <role>`: it performs a read-only comparison and
 prints JSON; exit 0 means the installed copy is fresh, and exit 1 means it is
-absent or stale. Claude Code, Fx and OpenCode need no install. The
+absent or stale. Claude Code and OpenCode need no install. The
 harness's exit code is returned unchanged. The full contract is the agentroles
 README.

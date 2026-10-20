@@ -10,7 +10,6 @@ import { basename } from "node:path";
 import { checkCodexPlugin, codexPluginInstalled, installCodexPlugin } from "./codex-plugin.ts";
 import { claudeArguments } from "./deliver/claude.ts";
 import { codexArguments, codexOverrides, codexPluginId } from "./deliver/codex.ts";
-import { fxArguments } from "./deliver/fx.ts";
 import { assertOpencodeV2, opencodeArguments, opencodeEnv } from "./deliver/opencode.ts";
 import { devinPluginRendered, installDevinPlugin } from "./devin-plugin.ts";
 import { RoleError, UsageError } from "./errors.ts";
@@ -20,17 +19,17 @@ import { devinPluginDir, renderClaudePlugin, renderOpencode } from "./render.ts"
 import { listRoles, loadRole, type Role, resolveRolePath } from "./role.ts";
 
 export const VERSION = "0.1.0";
-export const HARNESSES = ["claude", "codex", "fx", "opencode"] as const;
+export const HARNESSES = ["claude", "codex", "opencode"] as const;
 export type Harness = (typeof HARNESSES)[number];
 
 export const HELP = `agentroles ${VERSION}
 
-Give Claude Code, Codex, Fx or OpenCode a role for one invocation:
+Give Claude Code, Codex or OpenCode a role for one invocation:
 the role directory's skills, MCP servers, prompt files and Claude monitors apply
 to that process only.
 
 Usage:
-  agentroles <role> -- <claude|codex|fx|opencode> [harness arguments...]
+  agentroles <role> -- <claude|codex|opencode> [harness arguments...]
   agentroles list
   agentroles show <role>
   agentroles install <role>        install the role's skills as a disabled Codex plugin
@@ -93,7 +92,7 @@ export function parseCommand(argv: string[]): Command {
   const separator = rest.indexOf("--");
   if (separator !== 0)
     throw new UsageError(
-      `expected "agentroles ${first} -- <claude|codex|fx|opencode> [arguments...]"`,
+      `expected "agentroles ${first} -- <claude|codex|opencode> [arguments...]"`,
     );
   const command = rest.slice(1);
   if (command.length === 0) throw new UsageError("no harness command given after --");
@@ -103,6 +102,11 @@ export function parseCommand(argv: string[]): Command {
 export function harnessOf(command: string[]): Harness {
   const name = basename(command[0] ?? "");
   if ((HARNESSES as readonly string[]).includes(name)) return name as Harness;
+  if (name === "fx")
+    throw new RoleError(
+      "official Fx does not support per-invocation Role delivery",
+      "run fx directly, or use claude, codex or opencode for a Role",
+    );
   throw new RoleError(
     `"${name}" is not a supported harness`,
     `use one of ${HARNESSES.join(", ")} after --`,
@@ -142,8 +146,6 @@ export function deliver(
       const overrides = codexOverrides(role, codexPluginInstalled(role, env, home));
       return { harness, command: [bin, ...codexArguments(overrides, native)] };
     }
-    case "fx":
-      return { harness, command: [bin, ...fxArguments(role, native)] };
     case "opencode": {
       const hasRole =
         role.systemPrompt !== undefined ||
